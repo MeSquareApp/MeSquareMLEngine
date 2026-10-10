@@ -1,0 +1,24 @@
+[project]
+name = "mesquaremlengine"
+version = "0.1.0"
+description = "FastAPI template for MeSquareMLEngine"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi[standard]>=0.142.0",
+    "pandas>=3.0.6",
+    "psycopg[binary]>=3.3.6",
+    "pydantic-settings>=2.15.0",
+    "pyreadstat>=1.3.6",
+    "sqlalchemy>=2.1.4",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=8.4.2",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
