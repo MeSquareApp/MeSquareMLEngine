@@ -1,11 +1,15 @@
 import math
-import re
 from dataclasses import dataclass
 
 import pandas as pd
 
+from src.utils.exception import IngestError
+from src.utils.main_utils import is_safe_identifier
+
 NHANES_FILENAMES = (
     "BIOPRO_L.xpt",
+    "BMX_L.xpt",
+    "BPQ_L.xpt",
     "BPXO_L.xpt",
     "DEMO_L.xpt",
     "DIQ_L.xpt",
@@ -17,6 +21,8 @@ NHANES_FILENAMES = (
 
 TABLE_NAMES = {
     "BIOPRO_L.xpt": "BIOCHEMISTRY_PROFILES",
+    "BMX_L.xpt": "BODY_MEASURES",
+    "BPQ_L.xpt": "BLOOD_PRESSURE_CHOLESTEROL_QUESTIONNAIRES",
     "BPXO_L.xpt": "BLOOD_PRESSURE_READINGS",
     "DEMO_L.xpt": "DEMOGRAPHICS",
     "DIQ_L.xpt": "DIABETES_QUESTIONNAIRES",
@@ -26,7 +32,6 @@ TABLE_NAMES = {
     "TCHOL_L.xpt": "TOTAL_CHOLESTEROL_RESULTS",
 }
 
-_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _SAS_TYPES = {"double": "numeric", "string": "char"}
 
 
@@ -72,9 +77,9 @@ def table_name(filename: str) -> str:
     try:
         name = TABLE_NAMES[filename.rsplit("/", 1)[-1]]
     except KeyError as error:
-        raise ValueError(f"No table name mapped for {filename}") from error
-    if not _IDENTIFIER.fullmatch(name):
-        raise ValueError(f"Unsafe table name for {filename}")
+        raise IngestError(f"No table name mapped for {filename}") from error
+    if not is_safe_identifier(name):
+        raise IngestError(f"Unsafe table name for {filename}")
     return name
 
 
@@ -83,7 +88,7 @@ def postgres_type(sas_type: str) -> str:
         return "double precision"
     if sas_type == "char":
         return "text"
-    raise ValueError(f"Unsupported SAS type: {sas_type}")
+    raise IngestError(f"Unsupported SAS type: {sas_type}")
 
 
 def storage_url(base_url: str, filename: str) -> str:
@@ -100,10 +105,10 @@ def columns_from_metadata(
         try:
             sas_type = _SAS_TYPES[variable_types[name]]
         except KeyError as error:
-            raise ValueError(f"Unsupported SAS type for {name}") from error
+            raise IngestError(f"Unsupported SAS type for {name}") from error
         column_name = name.lower()
-        if not _IDENTIFIER.fullmatch(column_name):
-            raise ValueError(f"Unsafe column name {name!r}")
+        if not is_safe_identifier(column_name):
+            raise IngestError(f"Unsafe column name {name!r}")
         columns.append(Column(name=column_name, sas_type=sas_type, label=(label or "").strip()))
     return tuple(columns)
 
