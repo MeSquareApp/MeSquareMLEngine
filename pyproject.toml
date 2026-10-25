@@ -18,6 +18,12 @@ dev = [
     "httpx>=0.28.1",
     "pytest>=8.4.2",
 ]
+ml = [
+    "lightgbm>=4.7.0",
+    "matplotlib>=3.11.2",
+    "scikit-learn>=1.9.1",
+    "statsmodels>=0.15.0",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
