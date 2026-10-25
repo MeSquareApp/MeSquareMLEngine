@@ -5,7 +5,13 @@ from pathlib import Path
 import pandas as pd
 import pyreadstat
 
-from app.ingest.datasets import Column, Dataset, columns_from_metadata, storage_url, table_name
+from src.components.data_transformation import (
+    Column,
+    Dataset,
+    columns_from_metadata,
+    storage_url,
+    table_name,
+)
 
 
 def download(url: str) -> bytes:

@@ -1,11 +1,13 @@
 from fastapi import FastAPI
 
-from app.api.routes.health import router as health_router
-
 app = FastAPI()
-app.include_router(health_router)
 
 
 @app.get("/")
 async def root() -> dict[str, str]:
     return {"message": "Hello World"}
+
+
+@app.get("/health")
+async def health() -> dict[str, str]:
+    return {"status": "healthy"}

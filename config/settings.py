@@ -1,6 +1,9 @@
+from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_ROOT = Path(__file__).resolve().parents[1]
 
 
 def sqlalchemy_url(database_url: str) -> str:
@@ -30,7 +33,7 @@ class Settings(BaseSettings):
     nhanes_storage_base_url: str
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=_ROOT / ".env",
         env_file_encoding="utf-8",
         extra="ignore",
     )

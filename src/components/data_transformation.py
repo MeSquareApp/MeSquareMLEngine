@@ -1,11 +1,15 @@
 import math
-import re
 from dataclasses import dataclass
 
 import pandas as pd
 
+from src.utils.exception import IngestError
+from src.utils.main_utils import is_safe_identifier
+
 NHANES_FILENAMES = (
     "BIOPRO_L.xpt",
+    "BMX_L.xpt",
+    "BPQ_L.xpt",
     "BPXO_L.xpt",
     "DEMO_L.xpt",
     "DIQ_L.xpt",
@@ -16,17 +20,57 @@ NHANES_FILENAMES = (
 )
 
 TABLE_NAMES = {
-    "BIOPRO_L.xpt": "BIOCHEMISTRY_PROFILES",
-    "BPXO_L.xpt": "BLOOD_PRESSURE_READINGS",
-    "DEMO_L.xpt": "DEMOGRAPHICS",
-    "DIQ_L.xpt": "DIABETES_QUESTIONNAIRES",
-    "GHB_L.xpt": "GLYCOHEMOGLOBIN_RESULTS",
-    "HDL_L.xpt": "HDL_CHOLESTEROL_RESULTS",
-    "SMQ_L.xpt": "SMOKING_QUESTIONNAIRES",
-    "TCHOL_L.xpt": "TOTAL_CHOLESTEROL_RESULTS",
+    "BIOPRO_L.xpt": "biochemistry_profiles",
+    "BMX_L.xpt": "body_measures",
+    "BPQ_L.xpt": "blood_pressure_cholesterol_questionnaires",
+    "BPXO_L.xpt": "blood_pressure_readings",
+    "DEMO_L.xpt": "demographics",
+    "DIQ_L.xpt": "diabetes_questionnaires",
+    "GHB_L.xpt": "glycohemoglobin_results",
+    "HDL_L.xpt": "hdl_cholesterol_results",
+    "SMQ_L.xpt": "smoking_questionnaires",
+    "TCHOL_L.xpt": "total_cholesterol_results",
 }
 
-_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+# Cycle L codebook row counts (Aug 2021–Aug 2023).
+EXPECTED_ROW_COUNTS = {
+    "demographics": 11933,
+    "biochemistry_profiles": 7199,
+    "blood_pressure_readings": 7801,
+    "diabetes_questionnaires": 11744,
+    "glycohemoglobin_results": 7199,
+    "hdl_cholesterol_results": 8068,
+    "smoking_questionnaires": 9015,
+    "total_cholesterol_results": 8068,
+    "body_measures": 8860,
+    "blood_pressure_cholesterol_questionnaires": 8501,
+}
+
+# Spot-check ranges from the codebook for columns used by the modelling view.
+EXPECTED_RANGES = {
+    ("demographics", "ridageyr"): (0.0, 80.0),
+    ("total_cholesterol_results", "lbxtc"): (62.0, 438.0),
+    ("hdl_cholesterol_results", "lbdhdd"): (22.0, 159.0),
+    ("glycohemoglobin_results", "lbxgh"): (0.0, 17.1),
+    ("biochemistry_profiles", "lbxscr"): (0.33, 15.17),
+    ("body_measures", "bmxbmi"): (11.1, 74.8),
+}
+
+SAS_DUST_THRESHOLD = 1e-10
+
+# Permanent names from the earlier layout. The loader drops them; the current scripts use temp tables.
+NHANES_CORE_TABLES = (
+    "ml.demographics",
+    "ml.bpq",
+    "ml.bmx",
+    "ml.bpxo",
+    "ml.smq",
+    "ml.diq",
+    "ml.labs",
+)
+
+ML_TABLES = ("ml.cardiovascular_training",)
+
 _SAS_TYPES = {"double": "numeric", "string": "char"}
 
 
@@ -72,9 +116,9 @@ def table_name(filename: str) -> str:
     try:
         name = TABLE_NAMES[filename.rsplit("/", 1)[-1]]
     except KeyError as error:
-        raise ValueError(f"No table name mapped for {filename}") from error
-    if not _IDENTIFIER.fullmatch(name):
-        raise ValueError(f"Unsafe table name for {filename}")
+        raise IngestError(f"No table name mapped for {filename}") from error
+    if not is_safe_identifier(name):
+        raise IngestError(f"Unsafe table name for {filename}")
     return name
 
 
@@ -83,7 +127,7 @@ def postgres_type(sas_type: str) -> str:
         return "double precision"
     if sas_type == "char":
         return "text"
-    raise ValueError(f"Unsupported SAS type: {sas_type}")
+    raise IngestError(f"Unsupported SAS type: {sas_type}")
 
 
 def storage_url(base_url: str, filename: str) -> str:
@@ -100,10 +144,10 @@ def columns_from_metadata(
         try:
             sas_type = _SAS_TYPES[variable_types[name]]
         except KeyError as error:
-            raise ValueError(f"Unsupported SAS type for {name}") from error
+            raise IngestError(f"Unsupported SAS type for {name}") from error
         column_name = name.lower()
-        if not _IDENTIFIER.fullmatch(column_name):
-            raise ValueError(f"Unsafe column name {name!r}")
+        if not is_safe_identifier(column_name):
+            raise IngestError(f"Unsafe column name {name!r}")
         columns.append(Column(name=column_name, sas_type=sas_type, label=(label or "").strip()))
     return tuple(columns)
 
@@ -125,4 +169,6 @@ def python_value(value: object, sas_type: str) -> float | str | None:
     number = float(value)  # type: ignore[arg-type]
     if math.isnan(number):
         return None
+    if abs(number) < SAS_DUST_THRESHOLD:
+        return 0.0
     return number
