@@ -1,6 +1,7 @@
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _ROOT = Path(__file__).resolve().parents[1]
@@ -29,8 +30,10 @@ def _asyncpg_query_for_psycopg(database_url: str) -> str:
 
 
 class Settings(BaseSettings):
-    database_url: str
-    nhanes_storage_base_url: str
+    # Optional so the prediction API can start without DB credentials.
+    database_url: str | None = None
+    nhanes_storage_base_url: str | None = None
+    model_dir: Path = Field(default_factory=lambda: _ROOT / "artifacts" / "quantile")
 
     model_config = SettingsConfigDict(
         env_file=_ROOT / ".env",
@@ -40,6 +43,8 @@ class Settings(BaseSettings):
 
     @property
     def sqlalchemy_database_url(self) -> str:
+        if not self.database_url:
+            raise ValueError("DATABASE_URL is not configured")
         return sqlalchemy_url(self.database_url)
 
 
