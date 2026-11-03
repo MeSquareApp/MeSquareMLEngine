@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+CategoryLevel = float | str
+CategoryLevels = dict[str, list[CategoryLevel]]
+
 TARGETS: tuple[str, ...] = ("non_hdl", "hdl", "hba1c", "egfr", "sbp")
 
 FEATURES: tuple[str, ...] = (
@@ -22,6 +25,10 @@ FEATURES: tuple[str, ...] = (
 )
 
 CATEGORICAL: tuple[str, ...] = ("sex", "race_eth", "smoking")
+# Column positions of CATEGORICAL in the feature matrix, for LightGBM.
+CATEGORICAL_INDICES: tuple[int, ...] = tuple(
+    FEATURES.index(name) for name in CATEGORICAL
+)
 
 QUANTILES: tuple[float, ...] = (0.10, 0.50, 0.90)
 
@@ -41,7 +48,7 @@ TARGET_UNITS: dict[str, str] = {
 
 # NHANES RIDRETH3 codes used as categorical levels for race_eth.
 # Sex: RIAGENDR 1=male, 2=female. Smoking: derived labels from SMQ.
-DEFAULT_CATEGORY_LEVELS: dict[str, list] = {
+DEFAULT_CATEGORY_LEVELS: CategoryLevels = {
     "sex": [1.0, 2.0],
     "race_eth": [1.0, 2.0, 3.0, 4.0, 6.0, 7.0],
     "smoking": ["never", "former", "current"],
@@ -68,3 +75,4 @@ DEFAULT_N_ESTIMATORS = 2000
 LEARNING_RATE = 0.03
 EARLY_STOPPING_ROUNDS = 100
 MAX_PREDICT_BATCH = 1000
+MIN_TRAINING_ROWS = 50

@@ -7,82 +7,90 @@ from datetime import date, timedelta
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
+import polars as pl
 import pytest
 
 from src.components.feature_engineering import prepare_features
 from src.components.model_artifact import QuantileModelBundle, build_bundle
-from src.components.model_config import DEFAULT_CATEGORY_LEVELS, QUANTILES, TARGETS
+from src.components.model_config import (
+    DEFAULT_CATEGORY_LEVELS,
+    QUANTILES,
+    TARGETS,
+    CategoryLevels,
+)
 from src.components.model_trainer import fit_final
 from src.pipeline.prediction_pipeline import QuantilePredictor
 
+TINY_CONFIG = {"num_leaves": 7, "min_child_samples": 5}
+TINY_TREES = 20
 
-def _synthetic_frame(n: int = 120, seed: int = 0) -> pd.DataFrame:
+
+def synthetic_frame(n_rows: int = 120, seed: int = 0) -> pl.DataFrame:
+    """Training-shaped frame with a simple signal so LightGBM learns something."""
     rng = np.random.default_rng(seed)
-    sex = rng.choice([1.0, 2.0], size=n)
-    age = rng.uniform(20, 79, size=n)
-    race_eth = rng.choice([1.0, 2.0, 3.0, 4.0, 6.0, 7.0], size=n)
-    weight = rng.normal(80, 15, size=n).clip(40, 160)
-    waist = rng.normal(95, 12, size=n).clip(60, 150)
-    smoking = rng.choice(["never", "former", "current"], size=n)
-    diabetes_dx = rng.choice(["no", "yes", "borderline"], size=n, p=[0.7, 0.2, 0.1])
-
-    # Simple signal so LightGBM can learn something.
-    non_hdl = 100 + 0.4 * age + 0.3 * waist + rng.normal(0, 8, size=n)
-    hdl = 55 - 0.1 * waist + 5 * (sex == 2.0) + rng.normal(0, 4, size=n)
-    hba1c = 5.2 + 0.01 * age + 0.8 * (diabetes_dx == "yes") + rng.normal(0, 0.3, size=n)
-    egfr = 120 - 0.6 * age + rng.normal(0, 5, size=n)
-    sbp = 105 + 0.4 * age + 0.1 * weight + rng.normal(0, 8, size=n)
-
-    return pd.DataFrame(
+    sex = rng.choice([1.0, 2.0], size=n_rows)
+    age = rng.uniform(20, 79, size=n_rows)
+    weight = rng.normal(80, 15, size=n_rows).clip(40, 160)
+    waist = rng.normal(95, 12, size=n_rows).clip(60, 150)
+    diabetes_dx = rng.choice(
+        ["no", "yes", "borderline"], size=n_rows, p=[0.7, 0.2, 0.1]
+    )
+    flags = {
+        name: rng.integers(0, 2, size=n_rows)
+        for name in (
+            "told_high_bp",
+            "bp_meds",
+            "told_high_chol",
+            "chol_meds",
+            "prediabetes_dx",
+            "insulin",
+            "diabetes_pills",
+        )
+    }
+    return pl.DataFrame(
         {
             "sex": sex,
             "age": age,
-            "race_eth": race_eth,
+            "race_eth": rng.choice([1.0, 2.0, 3.0, 4.0, 6.0, 7.0], size=n_rows),
             "weight_kg": weight,
             "waist_cm": waist,
-            "smoking": smoking,
-            "told_high_bp": rng.integers(0, 2, size=n),
-            "bp_meds": rng.integers(0, 2, size=n),
-            "told_high_chol": rng.integers(0, 2, size=n),
-            "chol_meds": rng.integers(0, 2, size=n),
+            "smoking": rng.choice(["never", "former", "current"], size=n_rows),
             "diabetes_dx": diabetes_dx,
-            "prediabetes_dx": rng.integers(0, 2, size=n),
-            "insulin": rng.integers(0, 2, size=n),
-            "diabetes_pills": rng.integers(0, 2, size=n),
-            "non_hdl": non_hdl,
-            "hdl": hdl,
-            "hba1c": hba1c,
-            "egfr": egfr,
-            "sbp": sbp,
+            **flags,
+            "non_hdl": 100 + 0.4 * age + 0.3 * waist + rng.normal(0, 8, size=n_rows),
+            "hdl": 55 - 0.1 * waist + 5 * (sex == 2.0) + rng.normal(0, 4, size=n_rows),
+            "hba1c": 5.2
+            + 0.01 * age
+            + 0.8 * (diabetes_dx == "yes")
+            + rng.normal(0, 0.3, size=n_rows),
+            "egfr": 120 - 0.6 * age + rng.normal(0, 5, size=n_rows),
+            "sbp": 105 + 0.4 * age + 0.1 * weight + rng.normal(0, 8, size=n_rows),
         }
     )
 
 
 @pytest.fixture
-def category_levels() -> dict[str, list]:
-    return {k: list(v) for k, v in DEFAULT_CATEGORY_LEVELS.items()}
+def category_levels() -> CategoryLevels:
+    return {name: list(levels) for name, levels in DEFAULT_CATEGORY_LEVELS.items()}
 
 
 @pytest.fixture
-def tiny_bundle(
-    tmp_path: Path, category_levels: dict[str, list]
-) -> QuantileModelBundle:
-    frame = _synthetic_frame()
+def tiny_bundle(tmp_path: Path, category_levels: CategoryLevels) -> QuantileModelBundle:
+    """Small bundle trained on synthetic data, saved to and loaded from tmp_path."""
+    frame = synthetic_frame()
     features = prepare_features(frame, category_levels)
-    models = {}
-    row_counts = {}
-    cfg = {"num_leaves": 7, "min_child_samples": 5}
-    n_estimators = {tau: 20 for tau in QUANTILES}
-    for target in TARGETS:
-        y = frame[target].astype(float).to_numpy()
-        models[target] = fit_final(features, y, cfg, n_estimators, QUANTILES)
-        row_counts[target] = len(y)
+    n_estimators = dict.fromkeys(QUANTILES, TINY_TREES)
+    models = {
+        target: fit_final(
+            features, frame[target].to_numpy(), TINY_CONFIG, n_estimators, QUANTILES
+        )
+        for target in TARGETS
+    }
     bundle = build_bundle(
         models=models,
         category_levels=category_levels,
         metrics={"eval": []},
-        training_row_counts=row_counts,
+        training_row_counts=dict.fromkeys(TARGETS, frame.height),
         version="testbundle",
     )
     bundle.save(tmp_path)

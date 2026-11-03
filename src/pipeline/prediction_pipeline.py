@@ -2,68 +2,91 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from typing import Any
+from collections.abc import Mapping, Sequence
 
-from src.components.feature_engineering import prepare_features, records_to_frame
+from src.components.feature_engineering import (
+    FeatureValue,
+    FloatArray,
+    prepare_features,
+    records_to_frame,
+)
 from src.components.model_artifact import QuantileModelBundle
-from src.components.model_config import QUANTILE_LABELS, QUANTILES, TARGET_UNITS, TARGETS
+from src.components.model_config import QUANTILE_LABELS, TARGET_UNITS
 from src.components.model_trainer import predict_quantiles
+
+PatientRecord = Mapping[str, FeatureValue]
+TargetPrediction = dict[str, float | str]
 
 
 class QuantilePredictor:
+    """Population quantile predictions from a trained bundle."""
+
     def __init__(self, bundle: QuantileModelBundle) -> None:
+        """Wrap a loaded bundle.
+
+        Args:
+            bundle: Trained models and their encoding metadata.
+        """
         self.bundle = bundle
 
     @property
     def version(self) -> str:
+        """Version id of the loaded bundle."""
         return self.bundle.version
 
-    def predict(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """Return one prediction dict per patient with p10/p50/p90 for each target."""
-        frame = records_to_frame(records)
-        features = prepare_features(frame, self.bundle.category_levels)
-        results: list[dict[str, Any]] = []
-
-        # Precompute predictions per target for the whole batch.
-        pred_by_target = {
-            target: predict_quantiles(
-                self.bundle.models[target],
-                features,
-                self.bundle.quantiles or QUANTILES,
-            )
-            for target in self.bundle.targets or TARGETS
-        }
-
-        quantiles = self.bundle.quantiles or QUANTILES
-        for i in range(len(records)):
-            predictions: dict[str, dict[str, float | str]] = {}
-            for target in self.bundle.targets or TARGETS:
-                row = pred_by_target[target][i]
-                entry: dict[str, float | str] = {"unit": TARGET_UNITS[target]}
-                for j, tau in enumerate(quantiles):
-                    label = QUANTILE_LABELS.get(tau, f"p{int(tau * 100)}")
-                    entry[label] = float(row[j])
-                predictions[target] = entry
-            results.append({"predictions": predictions})
-        return results
-
-    def predict_quantiles(
-        self, record: Mapping[str, str | float | int | None]
-    ) -> dict[str, dict[float, float]]:
-        """Population quantiles for one patient record. Used by the digital twin.
+    def predict(
+        self, records: Sequence[PatientRecord]
+    ) -> list[dict[str, dict[str, TargetPrediction]]]:
+        """Quantiles per target for a batch of patients.
 
         Args:
-            record: Patient features with NHANES codes, as from PatientFeatures.
+            records: Patient features with NHANES codes.
+
+        Returns:
+            One {"predictions": {target: {"unit", "p10", "p50", "p90"}}} per patient.
+        """
+        matrices = self._quantile_matrices(records)
+        labels = [
+            QUANTILE_LABELS.get(tau, f"p{round(tau * 100)}")
+            for tau in self.bundle.quantiles
+        ]
+        return [
+            {
+                "predictions": {
+                    target: {
+                        "unit": TARGET_UNITS[target],
+                        **dict(zip(labels, map(float, matrix[row]), strict=True)),
+                    }
+                    for target, matrix in matrices.items()
+                }
+            }
+            for row in range(len(records))
+        ]
+
+    def predict_quantiles(self, record: PatientRecord) -> dict[str, dict[float, float]]:
+        """Population quantiles for one patient. Used by the digital twin.
+
+        Args:
+            record: Patient features with NHANES codes.
 
         Returns:
             Quantile values keyed by target, then tau.
         """
-        frame = records_to_frame([dict(record)])
-        features = prepare_features(frame, self.bundle.category_levels)
-        quantiles = self.bundle.quantiles or QUANTILES
-        result: dict[str, dict[float, float]] = {}
-        for target in self.bundle.targets or TARGETS:
-            row = predict_quantiles(self.bundle.models[target], features, quantiles)[0]
-            result[target] = dict(zip(quantiles, map(float, row), strict=True))
-        return result
+        return {
+            target: dict(zip(self.bundle.quantiles, map(float, matrix[0]), strict=True))
+            for target, matrix in self._quantile_matrices([record]).items()
+        }
+
+    def _quantile_matrices(
+        self, records: Sequence[PatientRecord]
+    ) -> dict[str, FloatArray]:
+        """Quantile matrix of shape (patients, quantiles) per target."""
+        features = prepare_features(
+            records_to_frame(records), self.bundle.category_levels
+        )
+        return {
+            target: predict_quantiles(
+                self.bundle.models[target], features, self.bundle.quantiles
+            )
+            for target in self.bundle.targets
+        }
