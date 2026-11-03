@@ -37,13 +37,15 @@ def test_load_training_frame_requires_database_url():
 
 def test_train_target_rejects_too_few_labeled_rows():
     # Arrange
-    features = np.zeros((MIN_TRAINING_ROWS + 10, 3))
-    values = np.full(MIN_TRAINING_ROWS + 10, np.nan)
+    n_rows = MIN_TRAINING_ROWS + 10
+    features = np.zeros((n_rows, 3))
+    values = np.full(n_rows, np.nan)
     values[:5] = 1.0
+    weights = np.ones(n_rows)
 
     # Act / Assert
     with pytest.raises(TrainingError):
-        train_target(features, values, "hdl")
+        train_target(features, values, weights, "hdl")
 
 
 def test_train_quantile_models_saves_a_loadable_bundle(fast_training, tmp_path):

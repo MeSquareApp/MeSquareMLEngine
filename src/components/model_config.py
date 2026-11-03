@@ -30,6 +30,16 @@ CATEGORICAL_INDICES: tuple[int, ...] = tuple(
     FEATURES.index(name) for name in CATEGORICAL
 )
 
+# NHANES survey weight per target: the phlebotomy weight for blood biomarkers, the
+# exam (MEC) weight for blood pressure.
+TARGET_WEIGHTS: dict[str, str] = {
+    "non_hdl": "wt_lab",
+    "hdl": "wt_lab",
+    "hba1c": "wt_lab",
+    "egfr": "wt_lab",
+    "sbp": "wt_mec",
+}
+
 QUANTILES: tuple[float, ...] = (0.10, 0.50, 0.90)
 
 QUANTILE_LABELS: dict[float, str] = {

@@ -34,12 +34,12 @@ def test_no_labs_no_wearables_keeps_prior_mean():
 
     # Act
     result = run_filter(
-        spec, Prior(150.0, 40.0), [], deltas, START + timedelta(days=29)
+        spec, Prior(np.log(150.0), 0.3), [], deltas, START + timedelta(days=29)
     )
 
     # Assert
     trajectory = result.trajectory
-    np.testing.assert_allclose(trajectory["mean"].to_numpy(), 150.0)
+    np.testing.assert_allclose(trajectory["mean"].to_numpy(), np.log(150.0))
     assert set(trajectory["basis"]) == {"prior"}
     assert trajectory["sd"].is_sorted()
 
@@ -47,10 +47,10 @@ def test_no_labs_no_wearables_keeps_prior_mean():
 def test_single_lab_matches_conjugate_update():
     # Arrange
     spec = BIOMARKERS["hdl"]
-    prior, lab = Prior(50.0, 14.0), 38.0
+    prior, lab = Prior(np.log(50.0), 0.28), 38.0
     noise = measurement_variance(lab, spec.measurement_cv, spec.transform)
     expected_var = 1.0 / (1.0 / prior.sd**2 + 1.0 / noise)
-    expected_mean = expected_var * (prior.mean / prior.sd**2 + lab / noise)
+    expected_mean = expected_var * (prior.mean / prior.sd**2 + np.log(lab) / noise)
 
     # Act
     result = run_filter(spec, prior, [(START, lab)], zero_deltas(1), START)
@@ -93,7 +93,7 @@ def test_wearable_effect_moves_mean_with_lag():
 
     # Act
     result = run_filter(
-        spec, Prior(130.0, 15.0), [], deltas, START + timedelta(days=199)
+        spec, Prior(np.log(130.0), 0.12), [], deltas, START + timedelta(days=199)
     )
 
     # Assert
@@ -128,7 +128,7 @@ def test_innovation_z_is_zero_when_lab_matches_prediction():
 
     # Act
     result = run_filter(
-        spec, Prior(150.0, 40.0), [(START, 150.0)], zero_deltas(1), START
+        spec, Prior(np.log(150.0), 0.3), [(START, 150.0)], zero_deltas(1), START
     )
 
     # Assert

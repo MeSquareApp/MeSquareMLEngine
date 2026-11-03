@@ -1,4 +1,4 @@
-"""Evaluation helpers for quantile regression models."""
+"""Survey-weighted evaluation helpers for quantile regression models."""
 
 from __future__ import annotations
 
@@ -10,6 +10,8 @@ from sklearn.metrics import mean_pinball_loss
 
 FloatArray = npt.NDArray[np.float64]
 MetricRow = dict[str, str | float | int]
+# Values and survey weights of one split.
+WeightedSample = tuple[FloatArray, FloatArray]
 INTERVAL_BOUNDS = (0.10, 0.90)
 
 
@@ -28,18 +30,37 @@ class EvalContext:
     n_estimators_by_tau: dict[float, int]
 
 
-def pinball_loss(y: FloatArray, q_pred: FloatArray, tau: float) -> float:
-    """Mean pinball loss of one quantile prediction.
+def pinball_loss(
+    y: FloatArray, q_pred: FloatArray, tau: float, weights: FloatArray | None = None
+) -> float:
+    """Weighted mean pinball loss of one quantile prediction.
 
     Args:
         y: Observed values.
         q_pred: Predicted tau-quantiles, same length as y.
         tau: Quantile level in (0, 1).
+        weights: Survey weights. None weighs every row equally.
 
     Returns:
         Mean pinball loss. Lower is better.
     """
-    return float(mean_pinball_loss(y, q_pred, alpha=tau))
+    return float(mean_pinball_loss(y, q_pred, alpha=tau, sample_weight=weights))
+
+
+def weighted_quantile(values: FloatArray, weights: FloatArray, tau: float) -> float:
+    """Population tau-quantile of weighted values (inverse of the weighted CDF).
+
+    Args:
+        values: Observed values.
+        weights: Survey weights, same length as values.
+        tau: Quantile level in (0, 1).
+
+    Returns:
+        The smallest value whose weighted cumulative share reaches tau.
+    """
+    order = np.argsort(values)
+    cumulative = np.cumsum(weights[order]) / weights.sum()
+    return float(values[order][np.searchsorted(cumulative, tau)])
 
 
 def fix_crossing(pred_matrix: FloatArray) -> FloatArray:
@@ -69,51 +90,54 @@ def skill_score(model_loss: float, baseline_loss: float) -> float:
     return 1.0 - model_loss / baseline_loss
 
 
-def coverage(y: FloatArray, q_pred: FloatArray) -> float:
-    """Share of observations at or below the predicted quantile.
+def coverage(y: FloatArray, q_pred: FloatArray, weights: FloatArray) -> float:
+    """Weighted share of observations at or below the predicted quantile.
 
     Args:
         y: Observed values.
         q_pred: Predicted quantiles, same length as y.
+        weights: Survey weights.
 
     Returns:
-        Empirical coverage in [0, 1].
+        Population coverage in [0, 1].
     """
-    return float(np.mean(y <= q_pred))
+    return float(np.average(y <= q_pred, weights=weights))
 
 
 def interval_metrics(
-    y: FloatArray, lower: FloatArray, upper: FloatArray
+    y: FloatArray, lower: FloatArray, upper: FloatArray, weights: FloatArray
 ) -> dict[str, float]:
-    """Coverage and mean width of a prediction interval.
+    """Weighted coverage and mean width of a prediction interval.
 
     Args:
         y: Observed values.
         lower: Lower interval bounds.
         upper: Upper interval bounds.
+        weights: Survey weights.
 
     Returns:
         {"coverage", "mean_width"}.
     """
     return {
-        "coverage": float(np.mean((y >= lower) & (y <= upper))),
-        "mean_width": float(np.mean(upper - lower)),
+        "coverage": float(np.average((y >= lower) & (y <= upper), weights=weights)),
+        "mean_width": float(np.average(upper - lower, weights=weights)),
     }
 
 
 def evaluate_target(
-    y_test: FloatArray,
+    test: WeightedSample,
     pred_matrix: FloatArray,
-    y_train: FloatArray,
+    train: WeightedSample,
     quantiles: tuple[float, ...],
     context: EvalContext,
 ) -> tuple[list[MetricRow], MetricRow]:
-    """Score one target's holdout predictions.
+    """Score one target's holdout predictions, weighted to the US population.
 
     Args:
-        y_test: Holdout values.
+        test: Holdout values and survey weights.
         pred_matrix: Holdout predictions of shape (rows, quantiles).
-        y_train: Training values, used for the constant-quantile baseline.
+        train: Training values and survey weights, for the constant-quantile
+            baseline.
         quantiles: Quantile levels matching pred_matrix columns. Must include the
             INTERVAL_BOUNDS.
         context: Labels for the rows.
@@ -124,12 +148,13 @@ def evaluate_target(
     Raises:
         ValueError: If quantiles does not include both INTERVAL_BOUNDS.
     """
+    y_test, test_weights = test
     eval_rows: list[MetricRow] = []
     for column, tau in enumerate(quantiles):
         q_pred = pred_matrix[:, column]
-        baseline = np.full_like(y_test, np.quantile(y_train, tau), dtype=np.float64)
-        model_loss = pinball_loss(y_test, q_pred, tau)
-        base_loss = pinball_loss(y_test, baseline, tau)
+        baseline = np.full_like(y_test, weighted_quantile(*train, tau))
+        model_loss = pinball_loss(y_test, q_pred, tau, test_weights)
+        base_loss = pinball_loss(y_test, baseline, tau, test_weights)
         eval_rows.append(
             {
                 "target": context.target,
@@ -139,7 +164,7 @@ def evaluate_target(
                 "test_pinball": model_loss,
                 "baseline_pinball": base_loss,
                 "skill": skill_score(model_loss, base_loss),
-                "coverage": coverage(y_test, q_pred),
+                "coverage": coverage(y_test, q_pred, test_weights),
             }
         )
 
@@ -148,6 +173,6 @@ def evaluate_target(
     interval_row: MetricRow = {
         "target": context.target,
         "interval": f"{round((upper_tau - lower_tau) * 100)}%",
-        **interval_metrics(y_test, lower, upper),
+        **interval_metrics(y_test, lower, upper, test_weights),
     }
     return eval_rows, interval_row

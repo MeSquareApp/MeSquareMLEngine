@@ -28,7 +28,9 @@ class BiomarkerSpec:
     Attributes:
         name: Biomarker key, matching the prior model's target.
         unit: Natural unit.
-        transform: Working scale of the filter.
+        transform: Working scale of the filter. Every biomarker uses "log":
+            population quantiles are right-skewed, so a normal on the log scale
+            matches p10/p50/p90 far better than a symmetric one.
         measurement_cv: Analytical plus within-person CV of a single measurement.
         annual_drift_cv: Within-person drift over a year with no behaviour change.
         tau_days: Response time to a sustained behaviour change.
@@ -50,7 +52,7 @@ BIOMARKERS: dict[str, BiomarkerSpec] = {
     "non_hdl": BiomarkerSpec(
         name="non_hdl",
         unit="mg/dL",
-        transform="identity",
+        transform="log",
         measurement_cv=0.07,
         annual_drift_cv=0.08,
         tau_days=30.0,
@@ -60,7 +62,7 @@ BIOMARKERS: dict[str, BiomarkerSpec] = {
     "hdl": BiomarkerSpec(
         name="hdl",
         unit="mg/dL",
-        transform="identity",
+        transform="log",
         measurement_cv=0.07,
         annual_drift_cv=0.06,
         tau_days=45.0,
@@ -90,7 +92,7 @@ BIOMARKERS: dict[str, BiomarkerSpec] = {
     "sbp": BiomarkerSpec(
         name="sbp",
         unit="mmHg",
-        transform="identity",
+        transform="log",
         measurement_cv=0.06,
         annual_drift_cv=0.05,
         tau_days=21.0,

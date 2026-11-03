@@ -8,6 +8,7 @@ from dataclasses import dataclass
 
 import lightgbm as lgb
 import numpy as np
+import numpy.typing as npt
 from sklearn.model_selection import KFold
 
 from src.components import model_config
@@ -26,7 +27,34 @@ from src.utils.logger import get_logger
 logger = get_logger(__name__)
 
 QuantileModels = dict[float, lgb.LGBMRegressor]
-Dataset = tuple[FloatArray, FloatArray]
+
+
+@dataclass(frozen=True)
+class TrainingData:
+    """Rows for one target, with NHANES survey weights.
+
+    Attributes:
+        features: Feature matrix.
+        values: Target values.
+        weights: Survey weight per row. Larger means the row represents more people.
+    """
+
+    features: FloatArray
+    values: FloatArray
+    weights: FloatArray
+
+
+def select_rows(data: TrainingData, rows: npt.NDArray[np.int_]) -> TrainingData:
+    """Subset every array of data to the given row indices.
+
+    Args:
+        data: Rows to subset.
+        rows: Row indices.
+
+    Returns:
+        The subset.
+    """
+    return TrainingData(data.features[rows], data.values[rows], data.weights[rows])
 
 
 @dataclass(frozen=True)
@@ -85,22 +113,25 @@ def make_lgbm(tau: float, params: Mapping[str, int]) -> lgb.LGBMRegressor:
 
 
 def fit_with_early_stopping(
-    model: lgb.LGBMRegressor, train: Dataset, validation: Dataset
+    model: lgb.LGBMRegressor, train: TrainingData, validation: TrainingData
 ) -> lgb.LGBMRegressor:
-    """Fit with early stopping on a validation set.
+    """Fit with survey weights and weighted early stopping on a validation set.
 
     Args:
         model: Unfitted regressor.
-        train: Training features and targets.
-        validation: Validation features and targets.
+        train: Training rows.
+        validation: Validation rows.
 
     Returns:
         The fitted model.
     """
     model.fit(
-        *train,
-        eval_X=(validation[0],),
-        eval_y=(validation[1],),
+        train.features,
+        train.values,
+        sample_weight=train.weights,
+        eval_X=(validation.features,),
+        eval_y=(validation.values,),
+        eval_sample_weight=[validation.weights],
         eval_metric="quantile",
         categorical_feature=list(CATEGORICAL_INDICES),
         callbacks=[
@@ -111,31 +142,37 @@ def fit_with_early_stopping(
     return model
 
 
-def labeled_rows(features: FloatArray, values: FloatArray) -> Dataset:
-    """Keep the rows whose target value is present.
+def labeled_rows(
+    features: FloatArray, values: FloatArray, weights: FloatArray
+) -> TrainingData:
+    """Keep rows with a target value and a positive survey weight.
+
+    A missing or zero weight means the person was not in the subsample that
+    measured this target, so the row cannot represent anyone.
 
     Args:
         features: Feature matrix for every row.
         values: Target values, NaN where missing.
+        weights: Survey weights, NaN where missing.
 
     Returns:
-        Features and targets of the labeled rows.
+        The usable rows.
     """
-    mask = ~np.isnan(values)
-    return features[mask], values[mask]
+    keep = ~np.isnan(values) & np.isfinite(weights) & (weights > 0)
+    return TrainingData(features[keep], values[keep], weights[keep])
 
 
 def cross_validate(
-    features: FloatArray,
-    values: FloatArray,
+    data: TrainingData,
     quantiles: tuple[float, ...] = QUANTILES,
     param_grid: list[dict[str, int]] | None = None,
 ) -> CVResult:
     """Pick the best configuration and per-quantile tree counts with K-fold CV.
 
+    Losses are survey-weighted, so the choice reflects the US population.
+
     Args:
-        features: Training feature matrix.
-        values: Training targets.
+        data: Training rows.
         quantiles: Quantile levels to fit.
         param_grid: Configurations to compare. Defaults to model_config.PARAM_GRID.
 
@@ -143,27 +180,24 @@ def cross_validate(
         The best configuration and its tree counts.
     """
     grid = param_grid or model_config.PARAM_GRID
-    folds = list(
-        KFold(
+    folds = [
+        (select_rows(data, train_rows), select_rows(data, valid_rows))
+        for train_rows, valid_rows in KFold(
             n_splits=model_config.N_SPLITS, shuffle=True, random_state=RANDOM_STATE
-        ).split(features)
-    )
+        ).split(data.features)
+    ]
     losses: defaultdict[tuple[int, float], list[float]] = defaultdict(list)
     best_iterations: defaultdict[tuple[int, float], list[int]] = defaultdict(list)
 
     for cfg_index, cfg in enumerate(grid):
         for tau in quantiles:
-            for train_rows, valid_rows in folds:
-                model = fit_with_early_stopping(
-                    make_lgbm(tau, cfg),
-                    (features[train_rows], values[train_rows]),
-                    (features[valid_rows], values[valid_rows]),
-                )
+            for train, validation in folds:
+                model = fit_with_early_stopping(make_lgbm(tau, cfg), train, validation)
                 prediction = np.asarray(
-                    model.predict(features[valid_rows]), dtype=np.float64
+                    model.predict(validation.features), dtype=np.float64
                 )
                 losses[cfg_index, tau].append(
-                    pinball_loss(values[valid_rows], prediction, tau)
+                    pinball_loss(validation.values, prediction, tau, validation.weights)
                 )
                 best_iterations[cfg_index, tau].append(
                     int(model.best_iteration_ or model.n_estimators)
@@ -196,17 +230,15 @@ def cross_validate(
 
 
 def fit_final(
-    features: FloatArray,
-    values: FloatArray,
+    data: TrainingData,
     cfg: Mapping[str, int],
     n_estimators_by_tau: Mapping[float, int],
     quantiles: tuple[float, ...] = QUANTILES,
 ) -> QuantileModels:
-    """Fit one quantile model per tau on all given rows.
+    """Fit one survey-weighted quantile model per tau on all given rows.
 
     Args:
-        features: Feature matrix.
-        values: Targets.
+        data: Training rows.
         cfg: LightGBM parameters.
         n_estimators_by_tau: Tree count per quantile.
         quantiles: Quantile levels to fit.
@@ -217,7 +249,12 @@ def fit_final(
     models: QuantileModels = {}
     for tau in quantiles:
         model = make_lgbm(tau, {**cfg, "n_estimators": n_estimators_by_tau[tau]})
-        model.fit(features, values, categorical_feature=list(CATEGORICAL_INDICES))
+        model.fit(
+            data.features,
+            data.values,
+            sample_weight=data.weights,
+            categorical_feature=list(CATEGORICAL_INDICES),
+        )
         models[tau] = model
     return models
 

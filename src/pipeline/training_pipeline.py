@@ -17,6 +17,7 @@ from src.components.model_config import (
     MIN_TRAINING_ROWS,
     QUANTILES,
     RANDOM_STATE,
+    TARGET_WEIGHTS,
     TARGETS,
     TEST_SIZE,
 )
@@ -32,6 +33,7 @@ from src.components.model_trainer import (
     fit_final,
     labeled_rows,
     predict_quantiles,
+    select_rows,
 )
 from src.repository.postgres_db_connection import NhanesRepository
 from src.utils.exception import MeSquareError
@@ -39,7 +41,13 @@ from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-TRAINING_QUERY = "SELECT * FROM ml.cardiovascular_training"
+# wt_lab (phlebotomy weight) is in the training table. The exam weight that SBP needs
+# comes from the raw demographics table.
+TRAINING_QUERY = """
+SELECT t.*, d.wtmec2yr AS wt_mec
+FROM ml.cardiovascular_training AS t
+JOIN nhanes.demographics AS d USING (seqn)
+"""
 
 
 class TrainingError(MeSquareError):
@@ -91,37 +99,43 @@ def load_training_frame(app_settings: Settings) -> pl.DataFrame:
 
 
 def train_target(
-    features: FloatArray, values: FloatArray, target: str
+    features: FloatArray, values: FloatArray, weights: FloatArray, target: str
 ) -> TargetTraining:
     """Tune, evaluate on a holdout split, then refit on every labeled row.
+
+    Fitting, early stopping, CV losses, and holdout metrics all use the NHANES
+    survey weights, so the quantiles describe the US population rather than the
+    oversampled NHANES sample.
 
     Args:
         features: Feature matrix for every training row.
         values: Target values, NaN where missing.
+        weights: Survey weights for this target, NaN where missing.
         target: Biomarker name.
 
     Returns:
         Production models and metrics.
 
     Raises:
-        TrainingError: If fewer than MIN_TRAINING_ROWS rows are labeled.
+        TrainingError: If fewer than MIN_TRAINING_ROWS rows are usable.
     """
-    X, y = labeled_rows(features, values)
-    if len(y) < MIN_TRAINING_ROWS:
-        raise TrainingError(f"Not enough labeled rows for {target}: {len(y)}")
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE
+    data = labeled_rows(features, values, weights)
+    if len(data.values) < MIN_TRAINING_ROWS:
+        raise TrainingError(f"Not enough labeled rows for {target}: {len(data.values)}")
+    train_rows, test_rows = train_test_split(
+        np.arange(len(data.values)), test_size=TEST_SIZE, random_state=RANDOM_STATE
     )
-    cv = cross_validate(X_train, y_train)
+    train, test = select_rows(data, train_rows), select_rows(data, test_rows)
+    cv = cross_validate(train)
     logger.info(
         "best for %s: %s (avg pinball=%.4f)", target, cv.config_name, cv.mean_pinball
     )
 
-    holdout_models = fit_final(X_train, y_train, cv.cfg, cv.n_estimators_by_tau)
+    holdout_models = fit_final(train, cv.cfg, cv.n_estimators_by_tau)
     eval_rows, interval_row = evaluate_target(
-        y_test,
-        predict_quantiles(holdout_models, X_test),
-        y_train,
+        (test.values, test.weights),
+        predict_quantiles(holdout_models, test.features),
+        (train.values, train.weights),
         QUANTILES,
         EvalContext(target, cv.config_name, cv.n_estimators_by_tau),
     )
@@ -132,7 +146,7 @@ def train_target(
         interval_row["mean_width"],
     )
     return TargetTraining(
-        models=fit_final(X, y, cv.cfg, cv.n_estimators_by_tau),
+        models=fit_final(data, cv.cfg, cv.n_estimators_by_tau),
         eval_rows=eval_rows,
         interval_row=interval_row,
         cv_summary={
@@ -142,7 +156,7 @@ def train_target(
             "n_estimators_by_tau": cv.n_estimators_by_tau,
             "pinball_mean_by_tau": cv.pinball_mean_by_tau,
         },
-        n_rows=len(y),
+        n_rows=len(data.values),
     )
 
 
@@ -169,8 +183,11 @@ def train_quantile_models(
     trained: dict[str, TargetTraining] = {}
     for target in TARGETS:
         logger.info("=== Training target: %s ===", target)
-        values = raw[target].cast(pl.Float64).fill_null(np.nan).to_numpy()
-        trained[target] = train_target(features, values, target)
+        values, weights = (
+            raw[column].cast(pl.Float64).fill_null(np.nan).to_numpy()
+            for column in (target, TARGET_WEIGHTS[target])
+        )
+        trained[target] = train_target(features, values, weights, target)
 
     bundle = build_bundle(
         models={target: result.models for target, result in trained.items()},

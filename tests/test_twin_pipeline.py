@@ -1,8 +1,9 @@
 from datetime import date, timedelta
 
+import numpy as np
 import pytest
 
-from src.components.egfr import egfr_ckd_epi_2009
+from src.components.egfr import egfr_ckd_epi_2021
 from src.components.model_config import TARGETS
 from src.pipeline.twin_pipeline import (
     LabRecord,
@@ -33,7 +34,40 @@ def test_normalize_labs_converts_total_chol_and_creatinine(twin_profile_codes):
     assert result["hdl"] == [(START, 38.0)]
     [(egfr_day, egfr)] = result["egfr"]
     assert egfr_day == START
-    assert egfr == pytest.approx(egfr_ckd_epi_2009(1.0, 52, 1, 3))
+    assert egfr == pytest.approx(egfr_ckd_epi_2021(1.0, 52, 1))
+
+
+def test_normalize_labs_prefers_direct_values_over_derived(twin_profile_codes):
+    # Arrange: one blood draw reported both directly and as inputs to a conversion.
+    labs: list[LabRecord] = [
+        {"date": START, "biomarker": "total_chol", "value": 230.0},
+        {"date": START, "biomarker": "hdl", "value": 38.0},
+        {"date": START, "biomarker": "non_hdl", "value": 192.0},
+        {"date": START, "biomarker": "scr", "value": 1.0},
+        {"date": START, "biomarker": "egfr", "value": 85.0},
+    ]
+
+    # Act
+    result = normalize_labs(labs, twin_profile_codes)
+
+    # Assert
+    assert result["non_hdl"] == [(START, 192.0)]
+    assert result["egfr"] == [(START, 85.0)]
+
+
+def test_normalize_labs_derives_once_per_day(twin_profile_codes):
+    # Arrange
+    labs: list[LabRecord] = [
+        {"date": START, "biomarker": "hdl", "value": 40.0},
+        {"date": START, "biomarker": "total_chol", "value": 200.0},
+        {"date": START, "biomarker": "total_chol", "value": 200.0},
+    ]
+
+    # Act
+    result = normalize_labs(labs, twin_profile_codes)
+
+    # Assert
+    assert result["non_hdl"] == [(START, 160.0)]
 
 
 def test_twin_runs_on_production_predictor(
@@ -85,7 +119,7 @@ def test_twin_reports_unavailable_r_package(
     assert twin.prevent_note == "AHA PREVENT R package is not available"
 
 
-def test_biomarker_samples_from_prior_center_on_prior_median(
+def test_biomarker_samples_from_prior_have_prior_median(
     stub_prior, twin_profile_codes, mock_prevent
 ):
     # Arrange
@@ -95,7 +129,7 @@ def test_biomarker_samples_from_prior_center_on_prior_median(
     samples = biomarker_samples(twin, None, n_samples=4000, seed=1)
 
     # Assert
-    assert samples["hdl"].mean() == pytest.approx(STUB_PRIOR["hdl"][0], rel=0.02)
+    assert np.median(samples["hdl"]) == pytest.approx(STUB_PRIOR["hdl"][0], rel=0.02)
 
 
 def test_biomarker_samples_reject_dates_outside_timeline(

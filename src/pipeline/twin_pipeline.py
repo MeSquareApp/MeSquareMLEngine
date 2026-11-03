@@ -15,7 +15,7 @@ from typing import Protocol
 import numpy as np
 import polars as pl
 
-from src.components.egfr import egfr_ckd_epi_2009
+from src.components.egfr import egfr_ckd_epi_2021
 from src.components.personalization.biomarker_config import BIOMARKERS
 from src.components.personalization.distributions import (
     FloatArray,
@@ -118,14 +118,16 @@ class _PreventContext:
 def normalize_labs(
     labs: Sequence[LabRecord], profile: Profile
 ) -> dict[str, list[tuple[date, float]]]:
-    """Map lab rows onto filter biomarkers.
+    """Map lab rows onto filter biomarkers, one measurement per blood draw.
 
     total_chol becomes non_hdl when HDL is on the same date. scr becomes eGFR
-    (CKD-EPI 2009). Other biomarkers are ignored.
+    (race-free CKD-EPI 2021). A derived value is used only when the same biomarker
+    was not reported directly that day, and at most once per day, so one draw is
+    never counted twice. Other biomarkers are ignored.
 
     Args:
         labs: Lab rows with "date", "biomarker", and "value".
-        profile: Needs "age", "sex", and "race_eth" to convert creatinine.
+        profile: Needs "age" and "sex" to convert creatinine.
 
     Returns:
         (date, value) pairs per biomarker in BIOMARKERS.
@@ -136,19 +138,23 @@ def normalize_labs(
         for row in labs
     ]
     hdl_by_date = {day: value for day, name, value in rows if name == "hdl"}
+    derived: dict[tuple[str, date], float] = {}
     for day, name, value in rows:
         if name in by_name:
             by_name[name].append((day, value))
         elif name == "total_chol" and day in hdl_by_date:
-            by_name["non_hdl"].append((day, value - hdl_by_date[day]))
+            derived.setdefault(("non_hdl", day), value - hdl_by_date[day])
         elif name == "scr":
-            egfr = egfr_ckd_epi_2009(
-                value,
-                _as_float(profile["age"]),
-                int(_as_float(profile["sex"])),
-                int(_as_float(profile["race_eth"])),
+            derived.setdefault(
+                ("egfr", day),
+                egfr_ckd_epi_2021(
+                    value, _as_float(profile["age"]), int(_as_float(profile["sex"]))
+                ),
             )
-            by_name["egfr"].append((day, egfr))
+    reported = {(name, day) for day, name, _ in rows}
+    for (name, day), value in derived.items():
+        if (name, day) not in reported:
+            by_name[name].append((day, value))
     return by_name
 
 

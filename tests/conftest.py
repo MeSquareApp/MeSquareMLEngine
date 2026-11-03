@@ -18,7 +18,7 @@ from src.components.model_config import (
     TARGETS,
     CategoryLevels,
 )
-from src.components.model_trainer import fit_final
+from src.components.model_trainer import TrainingData, fit_final
 from src.pipeline.prediction_pipeline import QuantilePredictor
 
 TINY_CONFIG = {"num_leaves": 7, "min_child_samples": 5}
@@ -65,6 +65,8 @@ def synthetic_frame(n_rows: int = 120, seed: int = 0) -> pl.DataFrame:
             + rng.normal(0, 0.3, size=n_rows),
             "egfr": 120 - 0.6 * age + rng.normal(0, 5, size=n_rows),
             "sbp": 105 + 0.4 * age + 0.1 * weight + rng.normal(0, 8, size=n_rows),
+            "wt_lab": rng.uniform(1_000, 50_000, size=n_rows),
+            "wt_mec": rng.uniform(1_000, 50_000, size=n_rows),
         }
     )
 
@@ -82,7 +84,12 @@ def tiny_bundle(tmp_path: Path, category_levels: CategoryLevels) -> QuantileMode
     n_estimators = dict.fromkeys(QUANTILES, TINY_TREES)
     models = {
         target: fit_final(
-            features, frame[target].to_numpy(), TINY_CONFIG, n_estimators, QUANTILES
+            TrainingData(
+                features, frame[target].to_numpy(), frame["wt_lab"].to_numpy()
+            ),
+            TINY_CONFIG,
+            n_estimators,
+            QUANTILES,
         )
         for target in TARGETS
     }

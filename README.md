@@ -54,6 +54,8 @@ uv run python upload_data.py
 
 Requires `DATABASE_URL` and a populated `ml.cardiovascular_training` table. Writes a versioned bundle under `artifacts/quantile/<version>/` (`model.joblib` + `metadata.json`).
 
+Training uses the NHANES survey weights: `wt_lab` for the blood biomarkers and `wt_mec`, joined from `nhanes.demographics`, for SBP. Holdout metrics use the same weights, so the quantiles and their reported coverage describe US adults rather than the oversampled NHANES sample. eGFR uses the race-free CKD-EPI 2021 equation, the one AHA PREVENT was derived with.
+
 ```bash
 uv run python train_model.py
 ```

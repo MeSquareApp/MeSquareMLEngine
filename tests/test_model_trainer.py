@@ -4,12 +4,14 @@ import pytest
 from src.components.feature_engineering import prepare_features
 from src.components.model_config import MIN_N_ESTIMATORS, QUANTILES
 from src.components.model_trainer import (
+    TrainingData,
     config_name,
     cross_validate,
     fit_final,
     labeled_rows,
     make_lgbm,
     predict_quantiles,
+    select_rows,
 )
 from tests.conftest import TINY_CONFIG, synthetic_frame
 
@@ -20,9 +22,11 @@ SMALL_GRID = [
 
 
 @pytest.fixture
-def training_data():
+def training_data() -> TrainingData:
     frame = synthetic_frame(n_rows=150)
-    return prepare_features(frame), frame["hdl"].to_numpy()
+    return TrainingData(
+        prepare_features(frame), frame["hdl"].to_numpy(), frame["wt_lab"].to_numpy()
+    )
 
 
 def test_config_name():
@@ -52,26 +56,40 @@ def test_make_lgbm_sets_quantile_objective():
     )
 
 
-def test_labeled_rows_drops_missing_targets():
+def test_labeled_rows_drops_missing_targets_and_unusable_weights():
     # Arrange
-    features = np.arange(6, dtype=float).reshape(3, 2)
-    values = np.array([1.0, np.nan, 3.0])
+    features = np.arange(8, dtype=float).reshape(4, 2)
+    values = np.array([1.0, np.nan, 3.0, 4.0])
+    weights = np.array([2.0, 2.0, 0.0, np.nan])
 
     # Act
-    kept_features, kept_values = labeled_rows(features, values)
+    data = labeled_rows(features, values, weights)
 
     # Assert
-    np.testing.assert_array_equal(kept_features, [[0.0, 1.0], [4.0, 5.0]])
-    np.testing.assert_array_equal(kept_values, [1.0, 3.0])
+    np.testing.assert_array_equal(data.features, [[0.0, 1.0]])
+    np.testing.assert_array_equal(data.values, [1.0])
+    np.testing.assert_array_equal(data.weights, [2.0])
+
+
+def test_select_rows_subsets_every_array(training_data):
+    # Arrange
+    rows = np.array([0, 2])
+
+    # Act
+    subset = select_rows(training_data, rows)
+
+    # Assert
+    np.testing.assert_array_equal(subset.values, training_data.values[rows])
+    np.testing.assert_array_equal(subset.weights, training_data.weights[rows])
+    assert subset.features.shape == (2, training_data.features.shape[1])
 
 
 def test_cross_validate_picks_a_grid_config(training_data, monkeypatch):
     # Arrange
     monkeypatch.setattr("src.components.model_config.N_SPLITS", 2)
-    features, values = training_data
 
     # Act
-    result = cross_validate(features, values, QUANTILES, SMALL_GRID)
+    result = cross_validate(training_data, QUANTILES, SMALL_GRID)
 
     # Assert
     assert result.cfg in SMALL_GRID
@@ -83,14 +101,32 @@ def test_cross_validate_picks_a_grid_config(training_data, monkeypatch):
 
 def test_fit_final_and_predict_quantiles_are_ordered(training_data):
     # Arrange
-    features, values = training_data
     trees = dict.fromkeys(QUANTILES, 30)
 
     # Act
-    models = fit_final(features, values, TINY_CONFIG, trees, QUANTILES)
-    predictions = predict_quantiles(models, features[:10], QUANTILES)
+    models = fit_final(training_data, TINY_CONFIG, trees, QUANTILES)
+    predictions = predict_quantiles(models, training_data.features[:10], QUANTILES)
 
     # Assert
     assert set(models) == set(QUANTILES)
     assert predictions.shape == (10, len(QUANTILES))
     assert np.all(np.diff(predictions, axis=1) >= 0)
+
+
+def test_survey_weights_move_the_fitted_median():
+    # Arrange: identical features, two groups of outcomes. Upweighting the high
+    # group should pull the population median toward it.
+    features = np.zeros((200, 2))
+    values = np.r_[np.full(100, 10.0), np.full(100, 20.0)]
+    trees = {0.5: 50}
+    equal = TrainingData(features, values, np.ones(200))
+    skewed = TrainingData(features, values, np.r_[np.ones(100), np.full(100, 9.0)])
+    cfg = {"num_leaves": 2, "min_child_samples": 1}
+
+    # Act
+    median_equal = fit_final(equal, cfg, trees, (0.5,))[0.5].predict(features[:1])
+    median_skewed = fit_final(skewed, cfg, trees, (0.5,))[0.5].predict(features[:1])
+
+    # Assert
+    assert median_skewed[0] > median_equal[0]
+    assert median_skewed[0] == pytest.approx(20.0, abs=0.5)
