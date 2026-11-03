@@ -1,6 +1,6 @@
 # MeSquareMLEngine
 
-Quantile biomarker prediction service for MeSquare. Trains LightGBM quantile models on NHANES-derived features and serves p10/p50/p90 predictions for `non_hdl`, `hdl`, `hba1c`, and `egfr`.
+Quantile biomarker prediction service for MeSquare. Trains LightGBM quantile models on NHANES-derived features and serves p10/p50/p90 predictions for `non_hdl`, `hdl`, `hba1c`, `egfr`, and `sbp`. The digital twin personalizes those predictions with lab results and wearable data, then scores 10-year cardiovascular risk with AHA PREVENT.
 
 ## Setup
 
@@ -26,6 +26,20 @@ For documentation, go to http://localhost:8000/docs
 uv run pytest
 ```
 
+Unit tests mock external dependencies such as R, the model files and the database. `tests/test_prevent_official.py` runs against the installed AHAprevent R package and skips when it is missing.
+
+Lint, format and type-check before committing (see `Claude.md`):
+
+```bash
+uv run ruff check . && uv run ruff format --check . && uv run mypy src app.py
+```
+
+Notebooks need a Jupyter kernel in `.venv`. It isn't a project requirement:
+
+```bash
+uv pip install ipykernel ipywidgets
+```
+
 ## Import NHANES data
 
 Uses the same `DATABASE_URL` as MeSquareBE. This downloads the public NHANES `.xpt` files, reads them with pyreadstat, and loads one table per file into the `nhanes` schema. App tables stay in `public`.
@@ -39,6 +53,8 @@ uv run python upload_data.py
 ## Train models
 
 Requires `DATABASE_URL` and a populated `ml.cardiovascular_training` table. Writes a versioned bundle under `artifacts/quantile/<version>/` (`model.joblib` + `metadata.json`).
+
+Training uses the NHANES survey weights: `wt_lab` for the blood biomarkers and `wt_mec`, joined from `nhanes.demographics`, for SBP. Holdout metrics use the same weights, so the quantiles and their reported coverage describe US adults rather than the oversampled NHANES sample. eGFR uses the race-free CKD-EPI 2021 equation, the one AHA PREVENT was derived with. Part of the holdout calibrates each target's p10-p90 range with conformalized quantile regression; the rest measures coverage. The widening is stored in the bundle and applied by both endpoints.
 
 ```bash
 uv run python train_model.py
@@ -73,14 +89,50 @@ curl -s http://localhost:8000/v1/predict \
 
 `sex` and `race_eth` accept NHANES labels (`Male` / `Female`, and the RIDRETH3 ethnicity strings). The API maps them to model codes via `src/constants`.
 
+## Digital twin
+
+`POST /v1/twin/predict`. The backend sends the user's profile (same fields as `/v1/predict`, plus `height_cm`), every lab result, and the end-of-day wearable aggregates from Open Wearables. The engine is stateless and recomputes the twin from that history on each call:
+
+1. **Prior.** The latest quantile bundle gives population p10/p50/p90 for the profile.
+2. **Labs.** A 1-D Kalman update per biomarker. Measurement noise is analytical plus within-person CV.
+3. **Wearables.** The first 30 days set the user's own baseline. After that, the change in the 30-day trailing mean moves each biomarker through literature effect sizes and a first-order lag (`src/components/personalization/biomarker_config.py`).
+4. **PREVENT.** Monte-Carlo samples from the biomarker posteriors go through the official AHA PREVENT R package (`AHAprevent::prevent_base`, v1.1.0), called in-process with rpy2. The engine never computes risk itself. The response has `population_prior`, `current`, and `forecast` 10-year risks.
+
+Labs and wearables dated after `as_of` are ignored. Wearable days can carry `wear_hours`: days under 10 hours are dropped, and without it, days under 1,000 steps are dropped. After a gap of more than 14 days the wearable effect fades with a 30-day half-life. The `wearable` block reports `valid_days_last_30`, `last_valid_date` and `status` (`no_data`, `building_baseline`, `ok`, `sparse`, `stale`).
+
+PREVENT inputs outside AHA's validated ranges (total cholesterol 130–320 mg/dL, HDL 20–100, SBP 90–200, BMI 18.5–39.9) are clipped so the official package still returns a value. `prevent_out_of_range` lists, per view, each input with at least 5% of samples clipped and the share affected, so the app can mark that risk as outside the validated range.
+
+Every trajectory point carries a `basis`:
+- `prior`: no data yet
+- `estimated`: wearables only
+- `measured` / `anchored`: on or after a lab
+
+It also carries a `confidence` label. `notebooks/personalization_twin.ipynb` prototypes and validates the full flow on simulated users.
+
+### AHA PREVENT (R) setup
+
+PREVENT results require R and the official package from the AHA-DS-Analytics/PREVENT repo. If either is missing, the API still answers, but `prevent` is empty and `prevent_note` says why.
+
+```bash
+brew install r
+R CMD INSTALL ../PREVENT/AHAprevent_1.1.0.tar.gz
+```
+
+On a Linux server or in Docker, install R (`r-base`) and run the same `R CMD INSTALL`. `rpy2` finds R through `R_HOME` or the `R` on `PATH`.
+
+The package is GPL-3. Have whoever handles licensing review how it ships with the service.
+
+`tests/test_prevent.py` checks the installed package against a published reference case. It also checks it against the official `prevent_beta10_2024.dta` and `prevent_test.dta` when a PREVENT checkout is found. Set `PREVENT_REPO_DIR`, or keep it as a sibling `PREVENT/` folder.
+
 ## Layout
 
 ```
 config/                  environment settings
-notebooks/               research prototypes
+notebooks/               research prototypes (quantile prior, digital twin)
 artifacts/quantile/      versioned model bundles (gitignored)
-src/components/          load, transform, model train/eval/artifact
-src/pipeline/            ingest, training, and prediction workflows
+src/components/          load, transform, model train/eval/artifact, PREVENT
+src/components/personalization/  Kalman filter, wearable features, biomarker settings
+src/pipeline/            ingest, training, prediction, and twin workflows
 src/repository/          Postgres connection and table loads
 src/schemas/             API request/response models
 src/utils/               logging, errors, and shared helpers
@@ -89,4 +141,5 @@ supabase/migrations/     schema creation, applied once by the Supabase CLI
 app.py                   launches the API
 train_model.py           trains and saves quantile models
 upload_data.py           pushes NHANES files into the database
+tests/                   unit and API tests
 ```

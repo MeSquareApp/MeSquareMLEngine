@@ -1,7 +1,10 @@
+"""Build loggers that write once to stderr."""
+
 import logging
 
 
 def get_logger(name: str) -> logging.Logger:
+    """Return a logger that writes INFO lines to stderr."""
     logger = logging.getLogger(name)
     if logger.handlers:
         return logger

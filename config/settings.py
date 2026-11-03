@@ -1,3 +1,5 @@
+"""Environment settings, read from .env at the project root."""
+
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -8,8 +10,18 @@ _ROOT = Path(__file__).resolve().parents[1]
 
 
 def sqlalchemy_url(database_url: str) -> str:
+    """Rewrite a Postgres URL to use the psycopg driver.
+
+    Args:
+        database_url: URL as used by MeSquareBE, possibly with asyncpg.
+
+    Returns:
+        A SQLAlchemy URL with the psycopg driver. Other URLs are returned unchanged.
+    """
     if database_url.startswith("postgresql+asyncpg://"):
-        rewritten = "postgresql+psycopg://" + database_url.removeprefix("postgresql+asyncpg://")
+        rewritten = "postgresql+psycopg://" + database_url.removeprefix(
+            "postgresql+asyncpg://"
+        )
         return _asyncpg_query_for_psycopg(rewritten)
     if database_url.startswith("postgresql+"):
         return database_url
@@ -21,6 +33,7 @@ def sqlalchemy_url(database_url: str) -> str:
 
 
 def _asyncpg_query_for_psycopg(database_url: str) -> str:
+    """Translate asyncpg's ssl query parameter to psycopg's sslmode."""
     parts = urlsplit(database_url)
     query = [
         ("sslmode", value) if key == "ssl" else (key, value)
@@ -30,7 +43,8 @@ def _asyncpg_query_for_psycopg(database_url: str) -> str:
 
 
 class Settings(BaseSettings):
-    # Optional so the prediction API can start without DB credentials.
+    """App settings. database_url is optional so the API starts without a DB."""
+
     database_url: str | None = None
     nhanes_storage_base_url: str | None = None
     model_dir: Path = Field(default_factory=lambda: _ROOT / "artifacts" / "quantile")
@@ -43,6 +57,11 @@ class Settings(BaseSettings):
 
     @property
     def sqlalchemy_database_url(self) -> str:
+        """SQLAlchemy URL for DATABASE_URL.
+
+        Raises:
+            ValueError: If DATABASE_URL is not configured.
+        """
         if not self.database_url:
             raise ValueError("DATABASE_URL is not configured")
         return sqlalchemy_url(self.database_url)

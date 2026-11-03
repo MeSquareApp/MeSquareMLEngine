@@ -2,82 +2,120 @@
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Mapping, Sequence
 
-import pandas as pd
+import numpy as np
+import numpy.typing as npt
+import polars as pl
 
 from src.components.model_config import (
     CATEGORICAL,
     DEFAULT_CATEGORY_LEVELS,
     DIABETES_DX_MAP,
     FEATURES,
+    CategoryLevels,
 )
 
+FloatArray = npt.NDArray[np.float64]
+FeatureValue = str | float | int | None
 
-def infer_category_levels(frame: pd.DataFrame) -> dict[str, list]:
-    """Build category levels from a training frame, falling back to defaults."""
-    levels: dict[str, list] = {}
-    for col in CATEGORICAL:
-        if col not in frame.columns:
-            levels[col] = list(DEFAULT_CATEGORY_LEVELS[col])
+STRING_FEATURES = frozenset({"smoking", "diabetes_dx"})
+FEATURE_SCHEMA: dict[str, type[pl.DataType]] = {
+    name: pl.String if name in STRING_FEATURES else pl.Float64 for name in FEATURES
+}
+
+
+def infer_category_levels(frame: pl.DataFrame) -> CategoryLevels:
+    """Build category levels from a training frame, after the default levels.
+
+    Levels seen in the data but not in the defaults are appended in sorted order, so
+    the integer code of every default level never changes.
+
+    Args:
+        frame: Training frame with the CATEGORICAL columns.
+
+    Returns:
+        Ordered levels per categorical feature.
+    """
+    levels: CategoryLevels = {}
+    for name in CATEGORICAL:
+        defaults = list(DEFAULT_CATEGORY_LEVELS[name])
+        if name not in frame.columns:
+            levels[name] = defaults
             continue
-        series = frame[col]
-        if col == "smoking":
-            observed = [v for v in series.dropna().astype(str).unique().tolist()]
-            defaults = list(DEFAULT_CATEGORY_LEVELS[col])
-            levels[col] = defaults + [v for v in observed if v not in defaults]
-        else:
-            observed = sorted(
-                float(v) for v in pd.to_numeric(series, errors="coerce").dropna().unique()
-            )
-            defaults = [float(v) for v in DEFAULT_CATEGORY_LEVELS[col]]
-            levels[col] = defaults + [v for v in observed if v not in defaults]
+        dtype = pl.String if name in STRING_FEATURES else pl.Float64
+        observed = frame[name].cast(dtype, strict=False).drop_nulls().unique().sort()
+        levels[name] = defaults + [
+            level for level in observed.to_list() if level not in defaults
+        ]
     return levels
 
 
-def prepare_features(
-    frame: pd.DataFrame,
-    category_levels: dict[str, list] | None = None,
-) -> pd.DataFrame:
-    """Map diabetes_dx, coerce numerics, and cast categoricals with fixed levels.
+def records_to_frame(records: Sequence[Mapping[str, FeatureValue]]) -> pl.DataFrame:
+    """Build a feature frame from patient records. Unknown keys are ignored.
 
-    Fixed category levels must match those saved at training time so LightGBM
-    sees the same integer codes at inference.
+    Args:
+        records: Patient feature dicts with NHANES codes.
+
+    Returns:
+        Frame with every column in FEATURES. Missing values are null.
     """
-    work = frame.copy()
+    return pl.DataFrame(list(records), schema=FEATURE_SCHEMA, strict=False)
+
+
+def prepare_features(
+    frame: pl.DataFrame, category_levels: CategoryLevels | None = None
+) -> FloatArray:
+    """Encode features as the float matrix the LightGBM models expect.
+
+    Categorical features become the index of their level in category_levels.
+    diabetes_dx maps through DIABETES_DX_MAP. Unknown or missing values become NaN.
+    The levels must match the ones saved at training time.
+
+    Example:
+        >>> frame = records_to_frame([{"sex": 2, "smoking": "former", "age": 50}])
+        >>> prepare_features(frame)[0, :3].tolist()
+        [1.0, 50.0, nan]
+
+    Args:
+        frame: Frame with feature columns. Missing columns are treated as null.
+        category_levels: Ordered levels per categorical feature. Defaults to
+            DEFAULT_CATEGORY_LEVELS.
+
+    Returns:
+        Matrix of shape (rows, len(FEATURES)) in FEATURES order.
+    """
     levels = category_levels or DEFAULT_CATEGORY_LEVELS
-
-    if "diabetes_dx" in work.columns:
-        def _map_diabetes_dx(value: object) -> object:
-            if pd.isna(value):
-                return value
-            if isinstance(value, (int, float)) and not isinstance(value, bool):
-                return value
-            key = str(value).strip().lower()
-            return DIABETES_DX_MAP.get(key, value)
-
-        work["diabetes_dx"] = work["diabetes_dx"].map(_map_diabetes_dx)
-
-    for col in FEATURES:
-        if col not in work.columns:
-            work[col] = pd.NA
-        if col not in CATEGORICAL:
-            work[col] = pd.to_numeric(work[col], errors="coerce")
-
-    for col in CATEGORICAL:
-        col_levels = levels.get(col, DEFAULT_CATEGORY_LEVELS[col])
-        if col == "smoking":
-            work[col] = work[col].astype(object)
-            work[col] = work[col].where(work[col].isna(), work[col].astype(str))
-        else:
-            work[col] = pd.to_numeric(work[col], errors="coerce")
-        work[col] = pd.Categorical(work[col], categories=col_levels)
-
-    return work[list(FEATURES)].copy()
+    missing = [name for name in FEATURES if name not in frame.columns]
+    frame = frame.with_columns(pl.lit(None).alias(name) for name in missing)
+    return (
+        frame.select(_encode(name, levels) for name in FEATURES)
+        .to_numpy()
+        .astype(np.float64)
+    )
 
 
-def records_to_frame(records: list[dict[str, Any]]) -> pd.DataFrame:
-    """Build a feature DataFrame from a list of patient dicts."""
-    if not records:
-        return pd.DataFrame(columns=list(FEATURES))
-    return pd.DataFrame(records)
+def _encode(name: str, levels: CategoryLevels) -> pl.Expr:
+    """Expression that turns one feature column into floats."""
+    column = pl.col(name)
+    if name in CATEGORICAL:
+        dtype = pl.String if name in STRING_FEATURES else pl.Float64
+        names = levels[name]
+        column = column.cast(dtype, strict=False).replace_strict(
+            names, list(range(len(names))), default=None, return_dtype=pl.Float64
+        )
+    elif name == "diabetes_dx":
+        column = (
+            column.cast(pl.String, strict=False)
+            .str.strip_chars()
+            .str.to_lowercase()
+            .replace_strict(
+                list(DIABETES_DX_MAP),
+                list(DIABETES_DX_MAP.values()),
+                default=None,
+                return_dtype=pl.Float64,
+            )
+        )
+    else:
+        column = column.cast(pl.Float64, strict=False)
+    return column.alias(name)
