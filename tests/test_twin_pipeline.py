@@ -110,6 +110,42 @@ def test_labs_after_as_of_are_ignored(stub_prior, twin_profile_codes, mock_preve
     assert set(hdl.trajectory["basis"]) == {"prior"}
 
 
+def test_out_of_range_inputs_are_flagged(stub_prior, twin_profile_codes, mock_prevent):
+    # Arrange: very high cholesterol and BMI above PREVENT's validated range.
+    labs: list[LabRecord] = [
+        {"date": START, "biomarker": "total_chol", "value": 380.0},
+        {"date": START, "biomarker": "hdl", "value": 40.0},
+    ]
+    profile = {**twin_profile_codes, "weight_kg": 140.0}
+    inputs = TwinInputs(profile=profile, labs=labs, as_of=START)
+
+    # Act
+    twin = predict_twin(stub_prior, inputs, n_samples=400)
+
+    # Assert
+    current = twin.prevent_out_of_range["current"]
+    assert current["total_chol"] > 0.5
+    assert current["bmi"] == 1.0
+    # A few tail draws from the wide SBP prior stay below the reporting share.
+    assert "sbp" not in current
+
+
+def test_in_range_profile_has_no_flags(stub_prior, twin_profile_codes, mock_prevent):
+    # Arrange
+    labs: list[LabRecord] = [
+        {"date": START, "biomarker": "total_chol", "value": 200.0},
+        {"date": START, "biomarker": "hdl", "value": 50.0},
+        {"date": START, "biomarker": "sbp", "value": 125.0},
+    ]
+    inputs = TwinInputs(profile=twin_profile_codes, labs=labs, as_of=START)
+
+    # Act
+    twin = predict_twin(stub_prior, inputs, n_samples=400)
+
+    # Assert
+    assert "current" not in twin.prevent_out_of_range
+
+
 def test_twin_without_height_explains_missing_prevent(
     stub_prior, twin_profile_codes, mock_prevent
 ):

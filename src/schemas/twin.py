@@ -115,10 +115,17 @@ class RiskOut(BaseModel):
 
 
 class TwinResponse(BaseModel):
-    """Twin output. prevent keys: population_prior, current, forecast."""
+    """Twin output. prevent keys: population_prior, current, forecast.
+
+    prevent_out_of_range maps a view to the PREVENT inputs (total_chol, hdl, sbp,
+    bmi) with at least 5% of samples outside AHA's validated range, and the share
+    that was clipped into it. Views and inputs below that are absent. A flagged
+    risk is less reliable and should not be shown as a validated result.
+    """
 
     as_of: date
     biomarkers: dict[str, BiomarkerOut]
     wearable: WearableOut
     prevent: dict[str, dict[str, RiskOut]]
     prevent_note: str | None = None
+    prevent_out_of_range: dict[str, dict[str, float]] = Field(default_factory=dict)

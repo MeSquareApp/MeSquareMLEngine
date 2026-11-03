@@ -58,6 +58,7 @@ def test_scenario_a_wearables_only(client, twin_profile):
     assert sbp["current"]["q50"] < sbp["prior"]["q50"]
     assert len(sbp["trajectory"]) == 120 + HORIZON_DAYS
     assert set(body["prevent"]) == {"population_prior", "current", "forecast"}
+    assert isinstance(body["prevent_out_of_range"], dict)
 
 
 def test_scenario_a_before_baseline_returns_prior(client, twin_profile):

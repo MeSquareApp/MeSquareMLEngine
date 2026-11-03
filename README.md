@@ -100,6 +100,8 @@ curl -s http://localhost:8000/v1/predict \
 
 Labs and wearables dated after `as_of` are ignored. Wearable days can carry `wear_hours`: days under 10 hours are dropped, and without it, days under 1,000 steps are dropped. After a gap of more than 14 days the wearable effect fades with a 30-day half-life. The `wearable` block reports `valid_days_last_30`, `last_valid_date` and `status` (`no_data`, `building_baseline`, `ok`, `sparse`, `stale`).
 
+PREVENT inputs outside AHA's validated ranges (total cholesterol 130–320 mg/dL, HDL 20–100, SBP 90–200, BMI 18.5–39.9) are clipped so the official package still returns a value. `prevent_out_of_range` lists, per view, each input with at least 5% of samples clipped and the share affected, so the app can mark that risk as outside the validated range.
+
 Every trajectory point carries a `basis`:
 - `prior`: no data yet
 - `estimated`: wearables only

@@ -259,6 +259,24 @@ def clip_to_validated(name: str, values: npt.ArrayLike) -> FloatArray:
     return np.clip(np.asarray(values, dtype=np.float64), low, high)
 
 
+def share_outside_validated(name: str, values: npt.ArrayLike) -> float:
+    """Share of samples outside PREVENT's validated range for one input.
+
+    Args:
+        name: Key of VALIDATED_RANGES.
+        values: Samples in the variable's unit, before clipping.
+
+    Returns:
+        Share in [0, 1]. Above zero means clip_to_validated changes those samples.
+
+    Raises:
+        KeyError: If name has no validated range.
+    """
+    low, high = VALIDATED_RANGES[name]
+    samples = np.asarray(values, dtype=np.float64)
+    return float(np.mean((samples < low) | (samples > high)))
+
+
 def summarize_risk(samples: dict[str, FloatArray]) -> dict[str, dict[str, float]]:
     """Median and 80% interval per outcome from Monte-Carlo risk samples.
 

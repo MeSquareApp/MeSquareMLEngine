@@ -9,6 +9,7 @@ from src.components.prevent import (
     PreventInputs,
     clip_to_validated,
     prevent_risk,
+    share_outside_validated,
     summarize_risk,
 )
 from tests.conftest import fake_prevent_base
@@ -118,3 +119,14 @@ def test_summarize_risk_quantiles():
     assert summary["total_cvd"] == pytest.approx(
         {"median": 0.5, "q10": 0.1, "q90": 0.9}
     )
+
+
+def test_share_outside_validated():
+    # Arrange
+    values = np.array([10.0, 50.0, 60.0, 150.0])
+
+    # Act
+    share = share_outside_validated("hdl", values)
+
+    # Assert
+    assert share == 0.5

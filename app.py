@@ -171,5 +171,6 @@ def to_twin_response(twin: TwinResult, include_trajectory: bool) -> TwinResponse
             },
             "prevent": twin.prevent,
             "prevent_note": twin.prevent_note,
+            "prevent_out_of_range": twin.prevent_out_of_range,
         }
     )

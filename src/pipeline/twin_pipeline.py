@@ -35,6 +35,7 @@ from src.components.prevent import (
     clip_to_validated,
     prevent_available,
     prevent_risk,
+    share_outside_validated,
     summarize_risk,
 )
 
@@ -42,6 +43,8 @@ ProfileValue = str | float | int | None
 Profile = Mapping[str, ProfileValue]
 LabRecord = Mapping[str, date | str | float]
 RiskSummary = dict[str, dict[str, float]]
+# Share of Monte-Carlo samples clipped into PREVENT's validated range, per input.
+RangeFlags = dict[str, float]
 
 DEFAULT_HORIZON_DAYS = 90
 # Each sample is one row through the official R package, which evaluates rows one at
@@ -49,6 +52,9 @@ DEFAULT_HORIZON_DAYS = 90
 DEFAULT_SAMPLES = 500
 HBA1C_DIABETES = 6.5
 PREVENT_BIOMARKERS = ("non_hdl", "hdl", "sbp", "egfr", "hba1c")
+# Report an input as out of range once at least this share of samples was clipped.
+# A few clipped tail draws from a wide prior barely move the risk.
+OUT_OF_RANGE_REPORT_SHARE = 0.05
 CM_PER_M = 100.0
 
 
@@ -90,6 +96,9 @@ class TwinResult:
         wearable: Wearable baseline and trailing-window summary.
         prevent: Risk summaries keyed "population_prior", "current", "forecast".
         prevent_note: Why PREVENT is empty, if it is.
+        prevent_out_of_range: Per view, the inputs with at least
+            OUT_OF_RANGE_REPORT_SHARE of samples outside AHA's validated range,
+            and that share. Empty when every input was essentially in range.
     """
 
     as_of: date
@@ -98,6 +107,7 @@ class TwinResult:
     wearable: WearableSummary
     prevent: dict[str, RiskSummary] = field(default_factory=dict)
     prevent_note: str | None = None
+    prevent_out_of_range: dict[str, RangeFlags] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -204,14 +214,15 @@ def predict_twin(
     twin = TwinResult(as_of, prior_quantiles, results, wearable)
     context, twin.prevent_note = _prevent_context(twin, prior_profile)
     if context is not None:
-        twin.prevent = {
-            view: _risk_on(twin, context, (on, weight), (n_samples, seed))
-            for view, on, weight in (
-                ("population_prior", None, context.prior_weight),
-                ("current", as_of, context.latest_weight),
-                ("forecast", end, context.latest_weight),
-            )
-        }
+        for view, on, weight in (
+            ("population_prior", None, context.prior_weight),
+            ("current", as_of, context.latest_weight),
+            ("forecast", end, context.latest_weight),
+        ):
+            risk, flags = _risk_on(twin, context, (on, weight), (n_samples, seed))
+            twin.prevent[view] = risk
+            if flags:
+                twin.prevent_out_of_range[view] = flags
     return twin
 
 
@@ -304,20 +315,36 @@ def _risk_on(
     context: _PreventContext,
     view: tuple[date | None, float],
     sampling: tuple[int, int],
-) -> RiskSummary:
-    """Monte-Carlo PREVENT risk for one (date, weight) view."""
+) -> tuple[RiskSummary, RangeFlags]:
+    """Monte-Carlo PREVENT risk for one (date, weight) view, with range flags.
+
+    Inputs outside AHA's validated ranges are clipped so the official package
+    returns a value. The second element reports which inputs were clipped, and for
+    what share of samples, so the response never hides it.
+    """
     on, weight = view
     samples = biomarker_samples(twin, on, *sampling)
     diabetes = context.diagnosed_diabetes | (samples["hba1c"] >= HBA1C_DIABETES)
-    total_chol = samples["non_hdl"] + samples["hdl"]
+    ranged = {
+        "total_chol": samples["non_hdl"] + samples["hdl"],
+        "hdl": samples["hdl"],
+        "sbp": samples["sbp"],
+        "bmi": np.atleast_1d(weight / context.height_m**2),
+    }
+    flags = {
+        name: share
+        for name, values in ranged.items()
+        if (share := share_outside_validated(name, values)) >= OUT_OF_RANGE_REPORT_SHARE
+    }
+    clipped = {name: clip_to_validated(name, values) for name, values in ranged.items()}
     risk = prevent_risk(
         PreventInputs(
             age=context.age,
             sex=context.sex,
-            total_chol=clip_to_validated("total_chol", total_chol),
-            hdl=clip_to_validated("hdl", samples["hdl"]),
-            sbp=clip_to_validated("sbp", samples["sbp"]),
-            bmi=clip_to_validated("bmi", weight / context.height_m**2),
+            total_chol=clipped["total_chol"],
+            hdl=clipped["hdl"],
+            sbp=clipped["sbp"],
+            bmi=clipped["bmi"],
             egfr=samples["egfr"],
             diabetes=diabetes.astype(np.float64),
             smoking=context.smoking,
@@ -325,7 +352,7 @@ def _risk_on(
             statin=context.statin,
         )
     )
-    return summarize_risk(risk)
+    return summarize_risk(risk), flags
 
 
 def _as_date(value: object) -> date:
