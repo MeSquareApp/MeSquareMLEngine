@@ -54,6 +54,9 @@ def test_make_lgbm_sets_quantile_objective():
         0.9,
         10,
     )
+    # Bagging is only active when subsample_freq > 0.
+    assert params["subsample"] < 1.0
+    assert params["subsample_freq"] >= 1
 
 
 def test_labeled_rows_drops_missing_targets_and_unusable_weights():

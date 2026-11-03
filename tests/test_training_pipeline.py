@@ -60,6 +60,7 @@ def test_train_quantile_models_saves_a_loadable_bundle(fast_training, tmp_path):
     assert loaded.version == bundle.version
     assert set(loaded.models) == set(TARGETS)
     assert loaded.training_row_counts == dict.fromkeys(TARGETS, 160)
+    assert set(loaded.interval_widening) == set(TARGETS)
     intervals = loaded.metrics["intervals"]
     assert isinstance(intervals, list)
     assert {row["target"] for row in intervals} == set(TARGETS)

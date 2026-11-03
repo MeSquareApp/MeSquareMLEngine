@@ -90,6 +90,26 @@ def test_twin_runs_on_production_predictor(
     assert twin.biomarkers["hdl"].trajectory["basis"][0] == "measured"
 
 
+def test_labs_after_as_of_are_ignored(stub_prior, twin_profile_codes, mock_prevent):
+    # Arrange
+    future_lab: LabRecord = {
+        "date": START + timedelta(days=10),
+        "biomarker": "hdl",
+        "value": 30.0,
+    }
+    inputs = TwinInputs(
+        profile=twin_profile_codes, labs=[future_lab], as_of=START, horizon_days=30
+    )
+
+    # Act
+    twin = predict_twin(stub_prior, inputs, n_samples=50)
+
+    # Assert
+    hdl = twin.biomarkers["hdl"]
+    assert hdl.innovations == []
+    assert set(hdl.trajectory["basis"]) == {"prior"}
+
+
 def test_twin_without_height_explains_missing_prevent(
     stub_prior, twin_profile_codes, mock_prevent
 ):

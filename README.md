@@ -54,7 +54,7 @@ uv run python upload_data.py
 
 Requires `DATABASE_URL` and a populated `ml.cardiovascular_training` table. Writes a versioned bundle under `artifacts/quantile/<version>/` (`model.joblib` + `metadata.json`).
 
-Training uses the NHANES survey weights: `wt_lab` for the blood biomarkers and `wt_mec`, joined from `nhanes.demographics`, for SBP. Holdout metrics use the same weights, so the quantiles and their reported coverage describe US adults rather than the oversampled NHANES sample. eGFR uses the race-free CKD-EPI 2021 equation, the one AHA PREVENT was derived with.
+Training uses the NHANES survey weights: `wt_lab` for the blood biomarkers and `wt_mec`, joined from `nhanes.demographics`, for SBP. Holdout metrics use the same weights, so the quantiles and their reported coverage describe US adults rather than the oversampled NHANES sample. eGFR uses the race-free CKD-EPI 2021 equation, the one AHA PREVENT was derived with. Part of the holdout calibrates each target's p10-p90 range with conformalized quantile regression; the rest measures coverage. The widening is stored in the bundle and applied by both endpoints.
 
 ```bash
 uv run python train_model.py
@@ -97,6 +97,8 @@ curl -s http://localhost:8000/v1/predict \
 2. **Labs.** A 1-D Kalman update per biomarker. Measurement noise is analytical plus within-person CV.
 3. **Wearables.** The first 30 days set the user's own baseline. After that, the change in the 30-day trailing mean moves each biomarker through literature effect sizes and a first-order lag (`src/components/personalization/biomarker_config.py`).
 4. **PREVENT.** Monte-Carlo samples from the biomarker posteriors go through the official AHA PREVENT R package (`AHAprevent::prevent_base`, v1.1.0), called in-process with rpy2. The engine never computes risk itself. The response has `population_prior`, `current`, and `forecast` 10-year risks.
+
+Labs and wearables dated after `as_of` are ignored. Wearable days can carry `wear_hours`: days under 10 hours are dropped, and without it, days under 1,000 steps are dropped. After a gap of more than 14 days the wearable effect fades with a 30-day half-life. The `wearable` block reports `valid_days_last_30`, `last_valid_date` and `status` (`no_data`, `building_baseline`, `ok`, `sparse`, `stale`).
 
 Every trajectory point carries a `basis`:
 - `prior`: no data yet

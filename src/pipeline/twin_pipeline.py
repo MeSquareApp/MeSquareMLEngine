@@ -168,7 +168,8 @@ def predict_twin(
 
     Args:
         prior: Population quantile model.
-        inputs: Profile, labs, wearables, as_of, and horizon.
+        inputs: Profile, labs, wearables, as_of, and horizon. Labs and wearables
+            dated after as_of are ignored.
         n_samples: Monte-Carlo samples per PREVENT view.
         seed: Random seed for the Monte-Carlo draws.
 
@@ -185,7 +186,10 @@ def predict_twin(
     prior_quantiles = prior.predict_quantiles(prior_profile)
 
     deltas = driver_deltas(wearable, start, end)
-    lab_values = normalize_labs(inputs.labs, inputs.profile)
+    # Like wearables, labs after as_of are not observed yet. Using them would turn
+    # the forecast into a look-ahead.
+    observed_labs = [lab for lab in inputs.labs if _as_date(lab["date"]) <= as_of]
+    lab_values = normalize_labs(observed_labs, inputs.profile)
     results = {
         name: run_filter(
             spec,

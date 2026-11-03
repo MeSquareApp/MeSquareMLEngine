@@ -80,6 +80,8 @@ PARAM_GRID: list[dict[str, int]] = [
 RANDOM_STATE = 42
 N_SPLITS = 5
 TEST_SIZE = 0.2
+# Share of the holdout used to calibrate the interval. The rest measures coverage.
+CALIBRATION_SHARE = 0.5
 MIN_N_ESTIMATORS = 50
 DEFAULT_N_ESTIMATORS = 2000
 LEARNING_RATE = 0.03

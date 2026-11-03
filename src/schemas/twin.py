@@ -27,9 +27,14 @@ class LabResult(BaseModel):
 
 
 class WearableDay(BaseModel):
-    """End-of-day aggregates from Open Wearables. Any field may be missing."""
+    """End-of-day aggregates from Open Wearables. Any field may be missing.
+
+    wear_hours lets the engine drop days the device was barely worn. Without it,
+    days under 1000 steps are treated as not worn.
+    """
 
     date: date
+    wear_hours: float | None = Field(default=None, ge=0, le=24)
     steps: float | None = None
     resting_hr: float | None = None
     hrv_rmssd: float | None = None
@@ -96,6 +101,9 @@ class WearableOut(BaseModel):
     baseline_ready: bool
     baseline: dict[str, float | None]
     latest_delta: dict[str, float | None]
+    valid_days_last_30: int
+    last_valid_date: date | None
+    status: Literal["no_data", "building_baseline", "ok", "sparse", "stale"]
 
 
 class RiskOut(BaseModel):

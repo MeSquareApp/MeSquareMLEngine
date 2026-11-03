@@ -60,7 +60,69 @@ def weighted_quantile(values: FloatArray, weights: FloatArray, tau: float) -> fl
     """
     order = np.argsort(values)
     cumulative = np.cumsum(weights[order]) / weights.sum()
-    return float(values[order][np.searchsorted(cumulative, tau)])
+    index = min(int(np.searchsorted(cumulative, tau)), len(values) - 1)
+    return float(values[order][index])
+
+
+def interval_columns(quantiles: tuple[float, ...]) -> tuple[int, int]:
+    """Column positions of the INTERVAL_BOUNDS quantiles.
+
+    Args:
+        quantiles: Quantile levels of a prediction matrix.
+
+    Returns:
+        (lower column, upper column).
+
+    Raises:
+        ValueError: If quantiles does not include both INTERVAL_BOUNDS.
+    """
+    lower, upper = (quantiles.index(tau) for tau in INTERVAL_BOUNDS)
+    return lower, upper
+
+
+def conformal_widening(
+    y: FloatArray, lower: FloatArray, upper: FloatArray, weights: FloatArray
+) -> float:
+    """Conformalized quantile regression (CQR) correction for the p10-p90 interval.
+
+    The score of each calibration row is how far it falls outside the interval
+    (negative inside). The weighted finite-sample quantile of the scores is the
+    amount to widen both bounds by, so the interval covers the target share of the
+    population. A negative value narrows an interval that over-covers.
+
+    Args:
+        y: Calibration values.
+        lower: Predicted lower bounds.
+        upper: Predicted upper bounds.
+        weights: Survey weights.
+
+    Returns:
+        Amount to subtract from the lower bound and add to the upper bound.
+    """
+    target = INTERVAL_BOUNDS[1] - INTERVAL_BOUNDS[0]
+    scores = np.maximum(lower - y, y - upper)
+    level = min(1.0, target * (1.0 + 1.0 / len(y)))
+    return weighted_quantile(scores, weights, level)
+
+
+def widen_interval(
+    pred_matrix: FloatArray, quantiles: tuple[float, ...], widening: float
+) -> FloatArray:
+    """Apply a conformal widening to the interval bounds of a prediction matrix.
+
+    Args:
+        pred_matrix: Predictions of shape (rows, quantiles).
+        quantiles: Quantile levels matching the columns.
+        widening: Output of conformal_widening().
+
+    Returns:
+        A new matrix with widened bounds, still non-crossing.
+    """
+    lower, upper = interval_columns(quantiles)
+    widened = pred_matrix.copy()
+    widened[:, lower] -= widening
+    widened[:, upper] += widening
+    return fix_crossing(widened)
 
 
 def fix_crossing(pred_matrix: FloatArray) -> FloatArray:
@@ -169,7 +231,7 @@ def evaluate_target(
         )
 
     lower_tau, upper_tau = INTERVAL_BOUNDS
-    lower, upper = (pred_matrix[:, quantiles.index(tau)] for tau in INTERVAL_BOUNDS)
+    lower, upper = (pred_matrix[:, column] for column in interval_columns(quantiles))
     interval_row: MetricRow = {
         "target": context.target,
         "interval": f"{round((upper_tau - lower_tau) * 100)}%",

@@ -114,5 +114,15 @@ DRIVER_FEATURES = ("weight_kg", "steps", "resting_hr", "sleep_h")
 # Steps are modelled per 1000 steps/day.
 FEATURE_SCALE = {"steps": 1000.0}
 
+# Weight comes from a smart scale, not the wrist device, so wear time does not apply.
+WRIST_FEATURES = tuple(name for name in WEARABLE_FEATURES if name != "weight_kg")
+
 BASELINE_DAYS = 30
 MIN_VALID_DAYS = 20
+# A day counts as worn with at least this much wear time, when the device reports it.
+MIN_WEAR_HOURS = 10.0
+# Without wear time, fewer steps than this means the device was barely worn.
+MIN_STEPS_WORN = 1000.0
+# After this many days without a valid trailing window, the wearable effect fades.
+STALE_AFTER_DAYS = 14
+STALE_HALF_LIFE_DAYS = 30.0

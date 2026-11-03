@@ -12,6 +12,7 @@ from src.components.feature_engineering import (
 )
 from src.components.model_artifact import QuantileModelBundle
 from src.components.model_config import QUANTILE_LABELS, TARGET_UNITS
+from src.components.model_evaluation import widen_interval
 from src.components.model_trainer import predict_quantiles
 
 PatientRecord = Mapping[str, FeatureValue]
@@ -80,13 +81,16 @@ class QuantilePredictor:
     def _quantile_matrices(
         self, records: Sequence[PatientRecord]
     ) -> dict[str, FloatArray]:
-        """Quantile matrix of shape (patients, quantiles) per target."""
+        """Calibrated quantile matrix of shape (patients, quantiles) per target."""
         features = prepare_features(
             records_to_frame(records), self.bundle.category_levels
         )
+        quantiles = self.bundle.quantiles
         return {
-            target: predict_quantiles(
-                self.bundle.models[target], features, self.bundle.quantiles
+            target: widen_interval(
+                predict_quantiles(self.bundle.models[target], features, quantiles),
+                quantiles,
+                self.bundle.interval_widening.get(target, 0.0),
             )
             for target in self.bundle.targets
         }

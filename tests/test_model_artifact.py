@@ -13,6 +13,7 @@ from src.components.model_config import FEATURES, QUANTILES, TARGETS
 def test_save_and_load_round_trip(tiny_bundle, tmp_path):
     # Arrange
     tiny_bundle.version = "20260101T0000Z"
+    tiny_bundle.interval_widening = {"hdl": 1.5}
 
     # Act
     tiny_bundle.save(tmp_path)
@@ -24,6 +25,7 @@ def test_save_and_load_round_trip(tiny_bundle, tmp_path):
     assert loaded.quantiles == QUANTILES
     assert loaded.feature_list == list(FEATURES)
     assert set(loaded.models["hdl"]) == set(QUANTILES)
+    assert loaded.interval_widening == {"hdl": 1.5}
 
 
 def test_save_writes_readable_metadata(tiny_bundle, tmp_path):

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import numpy as np
@@ -14,6 +14,7 @@ from src.components.egfr import with_egfr
 from src.components.feature_engineering import infer_category_levels, prepare_features
 from src.components.model_artifact import QuantileModelBundle, build_bundle
 from src.components.model_config import (
+    CALIBRATION_SHARE,
     MIN_TRAINING_ROWS,
     QUANTILES,
     RANDOM_STATE,
@@ -25,7 +26,10 @@ from src.components.model_evaluation import (
     EvalContext,
     FloatArray,
     MetricRow,
+    conformal_widening,
     evaluate_target,
+    interval_columns,
+    widen_interval,
 )
 from src.components.model_trainer import (
     QuantileModels,
@@ -64,6 +68,7 @@ class TargetTraining:
         interval_row: Holdout p10-p90 interval metrics.
         cv_summary: Selected configuration and CV losses.
         n_rows: Labeled rows.
+        interval_widening: Conformal widening of the p10-p90 interval.
     """
 
     models: QuantileModels
@@ -71,6 +76,7 @@ class TargetTraining:
     interval_row: MetricRow
     cv_summary: dict[str, object]
     n_rows: int
+    interval_widening: float
 
 
 def load_training_frame(app_settings: Settings) -> pl.DataFrame:
@@ -122,28 +128,45 @@ def train_target(
     data = labeled_rows(features, values, weights)
     if len(data.values) < MIN_TRAINING_ROWS:
         raise TrainingError(f"Not enough labeled rows for {target}: {len(data.values)}")
-    train_rows, test_rows = train_test_split(
+    train_rows, holdout_rows = train_test_split(
         np.arange(len(data.values)), test_size=TEST_SIZE, random_state=RANDOM_STATE
     )
-    train, test = select_rows(data, train_rows), select_rows(data, test_rows)
+    calibration_rows, test_rows = train_test_split(
+        holdout_rows, train_size=CALIBRATION_SHARE, random_state=RANDOM_STATE
+    )
+    train, calibration, test = (
+        select_rows(data, rows) for rows in (train_rows, calibration_rows, test_rows)
+    )
     cv = cross_validate(train)
     logger.info(
         "best for %s: %s (avg pinball=%.4f)", target, cv.config_name, cv.mean_pinball
     )
 
     holdout_models = fit_final(train, cv.cfg, cv.n_estimators_by_tau)
+    lower, upper = interval_columns(QUANTILES)
+    calibration_pred = predict_quantiles(holdout_models, calibration.features)
+    widening = conformal_widening(
+        calibration.values,
+        calibration_pred[:, lower],
+        calibration_pred[:, upper],
+        calibration.weights,
+    )
+    test_pred = widen_interval(
+        predict_quantiles(holdout_models, test.features), QUANTILES, widening
+    )
     eval_rows, interval_row = evaluate_target(
         (test.values, test.weights),
-        predict_quantiles(holdout_models, test.features),
+        test_pred,
         (train.values, train.weights),
         QUANTILES,
         EvalContext(target, cv.config_name, cv.n_estimators_by_tau),
     )
     logger.info(
-        "%s holdout: interval80 coverage=%.3f width=%.2f",
+        "%s holdout: interval80 coverage=%.3f width=%.2f (conformal widening %.2f)",
         target,
         interval_row["coverage"],
         interval_row["mean_width"],
+        widening,
     )
     return TargetTraining(
         models=fit_final(data, cv.cfg, cv.n_estimators_by_tau),
@@ -157,6 +180,7 @@ def train_target(
             "pinball_mean_by_tau": cv.pinball_mean_by_tau,
         },
         n_rows=len(data.values),
+        interval_widening=widening,
     )
 
 
@@ -199,6 +223,12 @@ def train_quantile_models(
         },
         training_row_counts={
             target: result.n_rows for target, result in trained.items()
+        },
+    )
+    bundle = replace(
+        bundle,
+        interval_widening={
+            target: result.interval_widening for target, result in trained.items()
         },
     )
     saved = bundle.save(Path(model_dir or app_settings.model_dir))

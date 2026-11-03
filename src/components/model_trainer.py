@@ -106,6 +106,8 @@ def make_lgbm(tau: float, params: Mapping[str, int]) -> lgb.LGBMRegressor:
         num_leaves=params["num_leaves"],
         min_child_samples=params["min_child_samples"],
         subsample=0.8,
+        # LightGBM only bags rows when subsample_freq > 0.
+        subsample_freq=1,
         colsample_bytree=0.8,
         random_state=RANDOM_STATE,
         verbose=-1,
