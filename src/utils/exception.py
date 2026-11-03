@@ -1,3 +1,6 @@
+"""Errors raised while loading or serving MeSquare models."""
+
+
 class MeSquareError(Exception):
     """Base error for MeSquareMLEngine."""
 

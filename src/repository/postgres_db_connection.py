@@ -1,6 +1,10 @@
-from pathlib import Path
+"""Read and write NHANES tables in Postgres."""
 
-from psycopg import sql
+from pathlib import Path
+from typing import Any
+
+from psycopg import Connection as PsycopgConnection
+from psycopg import Cursor, sql
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Connection, Engine
 
@@ -37,12 +41,14 @@ _DUST_CHECK_COLUMNS = (
 
 
 class NhanesRepository:
+    """Postgres access for raw NHANES tables and the training view."""
+
     def __init__(self, engine: Engine) -> None:
         """Keep the SQLAlchemy engine used for later queries."""
         self.engine = engine
 
     @classmethod
-    def from_settings(cls, app_settings: Settings) -> "NhanesRepository":
+    def from_settings(cls, app_settings: Settings) -> NhanesRepository:
         """Open a Postgres connection pool from app settings."""
         engine = create_engine(app_settings.sqlalchemy_database_url, pool_pre_ping=True)
         return cls(engine)
@@ -74,7 +80,7 @@ class NhanesRepository:
     def load_derived_tables(self) -> None:
         """Rebuild ml.cardiovascular_training in one transaction.
 
-        Patient-feature tables are temporary and are dropped when this transaction commits.
+        Patient-feature tables are temporary and drop on commit.
         """
         self.ensure_schema()
         self.drop_derived_tables()
@@ -123,12 +129,16 @@ class NhanesRepository:
                 copy_sql = sql.SQL("COPY {}.{} ({}) FROM STDIN").format(
                     sql.Identifier("nhanes"),
                     sql.Identifier(name),
-                    sql.SQL(", ").join(sql.Identifier(column.name) for column in dataset.columns),
+                    sql.SQL(", ").join(
+                        sql.Identifier(column.name) for column in dataset.columns
+                    ),
                 )
                 with cursor.copy(copy_sql) as copy:
                     for record in dataset.copy_records():
                         copy.write_row(record)
-        return ImportResult(filename=dataset.filename, table_name=name, row_count=len(dataset.frame))
+        return ImportResult(
+            filename=dataset.filename, table_name=name, row_count=len(dataset.frame)
+        )
 
     def verify(self, results: list[ImportResult]) -> None:
         """Raise when a loaded table's row count does not match the source dataset."""
@@ -142,10 +152,11 @@ class NhanesRepository:
                             sql.Identifier(result.table_name),
                         )
                     )
-                    actual = cursor.fetchone()[0]
+                    actual = _fetch_one(cursor)[0]
                     if actual != result.row_count:
                         mismatches.append(
-                            f"{result.table_name}: loaded {result.row_count}, table has {actual}"
+                            f"{result.table_name}: loaded {result.row_count}, "
+                            f"table has {actual}"
                         )
         if mismatches:
             raise IngestError("Row count mismatch: " + "; ".join(mismatches))
@@ -162,9 +173,11 @@ class NhanesRepository:
                             sql.Identifier(table_name),
                         )
                     )
-                    actual = cursor.fetchone()[0]
+                    actual = _fetch_one(cursor)[0]
                     if actual != expected:
-                        problems.append(f"{table_name}: expected {expected} rows, found {actual}")
+                        problems.append(
+                            f"{table_name}: expected {expected} rows, found {actual}"
+                        )
 
                 for (table_name, column_name), (low, high) in EXPECTED_RANGES.items():
                     cursor.execute(
@@ -178,9 +191,11 @@ class NhanesRepository:
                             column=sql.Identifier(column_name),
                         )
                     )
-                    minimum, maximum = cursor.fetchone()
+                    minimum, maximum = _fetch_one(cursor)
                     if minimum is None or maximum is None:
-                        problems.append(f"{table_name}.{column_name}: no non-null values")
+                        problems.append(
+                            f"{table_name}.{column_name}: no non-null values"
+                        )
                         continue
                     if minimum < low - 1e-6 or maximum > high + 1e-6:
                         problems.append(
@@ -203,16 +218,17 @@ class NhanesRepository:
                             threshold=sql.Literal(SAS_DUST_THRESHOLD),
                         )
                     )
-                    dust_count = cursor.fetchone()[0]
+                    dust_count = _fetch_one(cursor)[0]
                     if dust_count:
                         problems.append(
-                            f"{table_name}.{column_name}: {dust_count} SAS dust values remain"
+                            f"{table_name}.{column_name}: "
+                            f"{dust_count} SAS dust values remain"
                         )
         if problems:
             raise IngestError("Codebook verification failed: " + "; ".join(problems))
 
     def training_view_summary(self) -> dict[str, int]:
-        """Return row counts for ml.cardiovascular_training, overall and with each target."""
+        """Return training-table row counts, overall and per target."""
         with self.engine.connect() as connection:
             with _driver_connection(connection).cursor() as cursor:
                 cursor.execute(
@@ -226,7 +242,7 @@ class NhanesRepository:
                     FROM ml.cardiovascular_training
                     """
                 )
-                rows, non_hdl, hdl, hba1c, scr = cursor.fetchone()
+                rows, non_hdl, hdl, hba1c, scr = _fetch_one(cursor)
         return {
             "rows": rows,
             "non_hdl": non_hdl,
@@ -256,7 +272,15 @@ def _sql_statements(script: str) -> list[str]:
     return statements
 
 
-def _drop_relation(cursor, qualified: str) -> None:
+def _fetch_one(cursor: Cursor[tuple[Any, ...]]) -> tuple[Any, ...]:
+    """Return the single row from a query that always produces one."""
+    row = cursor.fetchone()
+    if row is None:
+        raise IngestError("Query returned no row")
+    return row
+
+
+def _drop_relation(cursor: Cursor[Any], qualified: str) -> None:
     """Drop a table or view when one exists under this schema-qualified name."""
     schema, name = qualified.split(".", 1)
     cursor.execute(
@@ -282,6 +306,9 @@ def _drop_relation(cursor, qualified: str) -> None:
     )
 
 
-def _driver_connection(connection: Connection):
+def _driver_connection(connection: Connection) -> PsycopgConnection:
     """Return the psycopg connection behind a SQLAlchemy connection."""
-    return connection.connection.driver_connection
+    driver = connection.connection.driver_connection
+    if not isinstance(driver, PsycopgConnection):
+        raise IngestError("Expected a psycopg connection")
+    return driver
