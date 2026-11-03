@@ -1,8 +1,4 @@
-"""Request and response bodies for POST /twin/predict.
-
-Coded fields follow NHANES: sex 1 = male, 2 = female. race_eth uses RIDRETH3 codes
-(1 Mexican American, 2 Other Hispanic, 3 NH White, 4 NH Black, 6 NH Asian, 7 Other/Multi).
-"""
+"""Request and response bodies for POST /v1/twin/predict."""
 
 from __future__ import annotations
 
@@ -11,25 +7,15 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from src.schemas.prediction import PatientFeatures
+
 LabBiomarker = Literal["non_hdl", "hdl", "total_chol", "hba1c", "egfr", "scr", "sbp"]
 
 
-class Profile(BaseModel):
-    sex: Literal[1, 2]
-    age: float = Field(ge=18, le=100)
-    race_eth: Literal[1, 2, 3, 4, 6, 7]
-    height_cm: float | None = None
-    weight_kg: float | None = None
-    waist_cm: float | None = None
-    smoking: Literal["never", "former", "current"] | None = None
-    told_high_bp: Literal[0, 1] | None = None
-    bp_meds: Literal[0, 1] | None = None
-    told_high_chol: Literal[0, 1] | None = None
-    chol_meds: Literal[0, 1] | None = None
-    diabetes_dx: Literal["no", "borderline", "yes"] | None = None
-    prediabetes_dx: Literal[0, 1] | None = None
-    insulin: Literal[0, 1] | None = None
-    diabetes_pills: Literal[0, 1] | None = None
+class Profile(PatientFeatures):
+    """Same fields and labels as /v1/predict, plus height for BMI in PREVENT."""
+
+    height_cm: float | None = Field(default=None, gt=0)
 
 
 class LabResult(BaseModel):

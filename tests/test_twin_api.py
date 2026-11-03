@@ -11,10 +11,10 @@ START = date(2026, 1, 1)
 
 @pytest.fixture
 def client():
-    app.state.prior = StubPrior()
     with TestClient(app) as test_client:
+        # Lifespan loads whatever model is on disk. Swap in the stub after startup.
+        app.state.predictor = StubPrior()
         yield test_client
-    app.state.prior = None
 
 
 def payload(profile: dict, labs: list[dict], n_days: int) -> dict:
@@ -41,8 +41,8 @@ def _width(biomarker: dict) -> float:
     return biomarker["current"]["q90"] - biomarker["current"]["q10"]
 
 
-def test_scenario_a_wearables_only(client, profile):
-    body = client.post("/twin/predict", json=payload(profile, [], 120)).json()
+def test_scenario_a_wearables_only(client, twin_profile):
+    body = client.post("/v1/twin/predict", json=payload(twin_profile, [], 120)).json()
     sbp = body["biomarkers"]["sbp"]
     assert body["wearable"]["baseline_ready"]
     assert sbp["current"]["basis"] == "estimated"
@@ -51,17 +51,17 @@ def test_scenario_a_wearables_only(client, profile):
     assert set(body["prevent"]) == {"population_prior", "current", "forecast"}
 
 
-def test_scenario_a_before_baseline_returns_prior(client, profile):
-    body = client.post("/twin/predict", json=payload(profile, [], 20)).json()
+def test_scenario_a_before_baseline_returns_prior(client, twin_profile):
+    body = client.post("/v1/twin/predict", json=payload(twin_profile, [], 20)).json()
     hdl = body["biomarkers"]["hdl"]
     assert not body["wearable"]["baseline_ready"]
     assert hdl["current"]["basis"] == "prior"
     assert hdl["current"]["q50"] == pytest.approx(hdl["prior"]["q50"])
 
 
-def test_scenario_b_lab_at_signup(client, profile):
-    with_lab = client.post("/twin/predict", json=payload(profile, DAY0_LABS, 120)).json()
-    without = client.post("/twin/predict", json=payload(profile, [], 120)).json()
+def test_scenario_b_lab_at_signup(client, twin_profile):
+    with_lab = client.post("/v1/twin/predict", json=payload(twin_profile, DAY0_LABS, 120)).json()
+    without = client.post("/v1/twin/predict", json=payload(twin_profile, [], 120)).json()
     hdl = with_lab["biomarkers"]["hdl"]
     assert hdl["current"]["basis"] == "anchored"
     assert abs(hdl["current"]["q50"] - 38) < abs(hdl["prior"]["q50"] - 38)
@@ -71,9 +71,8 @@ def test_scenario_b_lab_at_signup(client, profile):
     assert with_lab["biomarkers"]["non_hdl"]["innovations"][0]["observed"] == 192
 
 
-def test_missing_prior_returns_503(profile):
-    app.state.prior = None
+def test_missing_model_returns_503(twin_profile):
     with TestClient(app) as test_client:
-        app.state.prior = None
-        response = test_client.post("/twin/predict", json={"profile": profile})
+        app.state.predictor = None
+        response = test_client.post("/v1/twin/predict", json={"profile": twin_profile})
     assert response.status_code == 503
