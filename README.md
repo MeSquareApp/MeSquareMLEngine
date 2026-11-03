@@ -26,6 +26,20 @@ For documentation, go to http://localhost:8000/docs
 uv run pytest
 ```
 
+Unit tests mock external dependencies such as R, the model files and the database. `tests/test_prevent_official.py` runs against the installed AHAprevent R package and skips when it is missing.
+
+Lint, format and type-check before committing (see `Claude.md`):
+
+```bash
+uv run ruff check . && uv run ruff format --check . && uv run mypy src app.py
+```
+
+Notebooks need a Jupyter kernel in `.venv`. It isn't a project requirement:
+
+```bash
+uv pip install ipykernel ipywidgets
+```
+
 ## Import NHANES data
 
 Uses the same `DATABASE_URL` as MeSquareBE. This downloads the public NHANES `.xpt` files, reads them with pyreadstat, and loads one table per file into the `nhanes` schema. App tables stay in `public`.

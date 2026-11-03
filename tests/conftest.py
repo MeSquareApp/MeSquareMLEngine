@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -64,7 +65,9 @@ def category_levels() -> dict[str, list]:
 
 
 @pytest.fixture
-def tiny_bundle(tmp_path: Path, category_levels: dict[str, list]) -> QuantileModelBundle:
+def tiny_bundle(
+    tmp_path: Path, category_levels: dict[str, list]
+) -> QuantileModelBundle:
     frame = _synthetic_frame()
     features = prepare_features(frame, category_levels)
     models = {}
@@ -127,23 +130,54 @@ STUB_PRIOR = {
     "sbp": (125.0, 16.0),
 }
 Z_SCORES = {0.10: -1.2816, 0.50: 0.0, 0.90: 1.2816}
+STEP_INCREASE = 4000.0
+WEIGHT_LOSS_PER_DAY = 0.04
 
 
 class StubPrior:
-    """Fixed normal quantiles, so twin assertions don't depend on a trained model."""
+    """Fixed normal quantiles, so twin assertions do not depend on a trained model."""
 
     version = "stub"
 
-    def predict_quantiles(self, profile: pd.DataFrame) -> dict[str, dict[float, float]]:
+    def predict_quantiles(
+        self, record: Mapping[str, str | float | int | None]
+    ) -> dict[str, dict[float, float]]:
+        """Return the same quantiles for every record.
+
+        Args:
+            record: Ignored patient record.
+
+        Returns:
+            Quantiles keyed by target, then tau.
+        """
         return {
             target: {tau: median + z * sd for tau, z in Z_SCORES.items()}
             for target, (median, sd) in STUB_PRIOR.items()
         }
 
 
+def fake_prevent_base(
+    sex: np.ndarray, age: np.ndarray, columns: dict[str, np.ndarray]
+) -> dict[str, np.ndarray]:
+    """Stand-in for the R call: percent risk that rises with SBP and cholesterol."""
+    base = columns["sbp"] / 20.0 + columns["tc"] / 100.0 + sex
+    return {
+        "prevent_base_10yr_CVD": base,
+        "prevent_base_10yr_ASCVD": base / 2.0,
+        "prevent_base_10yr_HF": base / 4.0,
+    }
+
+
 @pytest.fixture
 def stub_prior() -> StubPrior:
     return StubPrior()
+
+
+@pytest.fixture
+def mock_prevent(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Replace the official R package with fake_prevent_base."""
+    monkeypatch.setattr("src.components.prevent._call_prevent_base", fake_prevent_base)
+    monkeypatch.setattr("src.pipeline.twin_pipeline.prevent_available", lambda: True)
 
 
 @pytest.fixture
@@ -162,21 +196,40 @@ def twin_profile() -> dict:
     }
 
 
+@pytest.fixture
+def twin_profile_codes(twin_profile: dict) -> dict:
+    """twin_profile after API enum serialization (numeric NHANES codes)."""
+    return {**twin_profile, "sex": 1, "race_eth": 3}
+
+
 def make_wearables(
     start: date, n_days: int, change_day: int | None = 45, seed: int = 0
-) -> pd.DataFrame:
-    """Daily wearables. From change_day: +4000 steps and weight falling 0.04 kg/day."""
+) -> list[dict[str, date | float | None]]:
+    """Daily wearables. From change_day: more steps and slowly falling weight.
+
+    Args:
+        start: First day.
+        n_days: Number of days.
+        change_day: Day the behaviour change starts. None for no change.
+        seed: Random seed for day-to-day noise.
+
+    Returns:
+        One record per day.
+    """
     rng = np.random.default_rng(seed)
-    rows = []
-    for i in range(n_days):
-        active = change_day is not None and i >= change_day
-        rows.append(
+    records: list[dict[str, date | float | None]] = []
+    for day_index in range(n_days):
+        active = change_day is not None and day_index >= change_day
+        days_active = day_index - change_day if active and change_day is not None else 0
+        records.append(
             {
-                "date": start + timedelta(days=i),
-                "steps": 5000 + (4000 if active else 0) + rng.normal(0, 500),
+                "date": start + timedelta(days=day_index),
+                "steps": 5000 + (STEP_INCREASE if active else 0) + rng.normal(0, 500),
                 "resting_hr": 70 + rng.normal(0, 1),
                 "sleep_h": 7 + rng.normal(0, 0.3),
-                "weight_kg": 92 - (0.04 * (i - change_day) if active else 0) + rng.normal(0, 0.2),
+                "weight_kg": 92
+                - WEIGHT_LOSS_PER_DAY * days_active
+                + rng.normal(0, 0.2),
             }
         )
-    return pd.DataFrame(rows)
+    return records

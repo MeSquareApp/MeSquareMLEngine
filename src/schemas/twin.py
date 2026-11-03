@@ -19,6 +19,8 @@ class Profile(PatientFeatures):
 
 
 class LabResult(BaseModel):
+    """One lab value. total_chol and scr are converted to non_hdl and eGFR."""
+
     date: date
     biomarker: LabBiomarker
     value: float = Field(gt=0)
@@ -37,21 +39,27 @@ class WearableDay(BaseModel):
 
 
 class TwinRequest(BaseModel):
+    """Body of POST /v1/twin/predict: the user's full history."""
+
     profile: Profile
-    labs: list[LabResult] = []
-    wearable_days: list[WearableDay] = []
+    labs: list[LabResult] = Field(default_factory=list)
+    wearable_days: list[WearableDay] = Field(default_factory=list)
     as_of: date | None = None
     horizon_days: int = Field(default=90, ge=0, le=365)
     include_trajectory: bool = True
 
 
 class Interval(BaseModel):
+    """Natural-unit 10th, 50th, and 90th percentiles."""
+
     q10: float
     q50: float
     q90: float
 
 
 class TrajectoryPoint(Interval):
+    """One day of a biomarker trajectory and where its estimate comes from."""
+
     date: date
     basis: Literal["prior", "estimated", "measured", "anchored"]
     confidence: Literal["low", "medium", "high"]
@@ -59,6 +67,8 @@ class TrajectoryPoint(Interval):
 
 
 class InnovationOut(BaseModel):
+    """How a lab compared with the prediction made just before it."""
+
     date: date
     observed: float
     predicted: float
@@ -66,6 +76,8 @@ class InnovationOut(BaseModel):
 
 
 class BiomarkerOut(BaseModel):
+    """Prior, current, and forecast view of one biomarker."""
+
     unit: str
     prior: Interval
     current: TrajectoryPoint
@@ -77,6 +89,8 @@ class BiomarkerOut(BaseModel):
 
 
 class WearableOut(BaseModel):
+    """The user's wearable baseline and latest change against it."""
+
     first_date: date | None
     baseline_end: date | None
     baseline_ready: bool
@@ -85,15 +99,18 @@ class WearableOut(BaseModel):
 
 
 class RiskOut(BaseModel):
+    """10-year risk as a fraction: median and 80% interval."""
+
     median: float
     q10: float
     q90: float
 
 
 class TwinResponse(BaseModel):
+    """Twin output. prevent keys: population_prior, current, forecast."""
+
     as_of: date
     biomarkers: dict[str, BiomarkerOut]
     wearable: WearableOut
-    # Keys: population_prior, current, forecast. Each maps outcome -> 10-year risk.
     prevent: dict[str, dict[str, RiskOut]]
     prevent_note: str | None = None

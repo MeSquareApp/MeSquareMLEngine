@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
-
-import pandas as pd
 
 from src.components.feature_engineering import prepare_features, records_to_frame
 from src.components.model_artifact import QuantileModelBundle
@@ -49,12 +48,22 @@ class QuantilePredictor:
             results.append({"predictions": predictions})
         return results
 
-    def predict_quantiles(self, profile: pd.DataFrame) -> dict[str, dict[float, float]]:
-        """Quantiles for the first row of profile, keyed by target then tau. Used by the twin."""
-        features = prepare_features(profile.iloc[[0]], self.bundle.category_levels)
+    def predict_quantiles(
+        self, record: Mapping[str, str | float | int | None]
+    ) -> dict[str, dict[float, float]]:
+        """Population quantiles for one patient record. Used by the digital twin.
+
+        Args:
+            record: Patient features with NHANES codes, as from PatientFeatures.
+
+        Returns:
+            Quantile values keyed by target, then tau.
+        """
+        frame = records_to_frame([dict(record)])
+        features = prepare_features(frame, self.bundle.category_levels)
         quantiles = self.bundle.quantiles or QUANTILES
         result: dict[str, dict[float, float]] = {}
         for target in self.bundle.targets or TARGETS:
             row = predict_quantiles(self.bundle.models[target], features, quantiles)[0]
-            result[target] = {tau: float(value) for tau, value in zip(quantiles, row, strict=True)}
+            result[target] = dict(zip(quantiles, map(float, row), strict=True))
         return result

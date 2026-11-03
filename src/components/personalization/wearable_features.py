@@ -1,17 +1,20 @@
-"""Turn end-of-day wearable aggregates into behaviour changes against the user's own baseline.
+"""Turn end-of-day wearable aggregates into changes against the user's own baseline.
 
-The baseline is the mean over the first BASELINE_DAYS calendar days of wearable data. After
-that, each driver's change is its trailing BASELINE_DAYS mean minus the baseline. A window
-counts only with at least MIN_VALID_DAYS days of data. Through gaps and into the forecast,
-the last known change is carried forward, which assumes the behaviour persists.
+The baseline is the mean over the first BASELINE_DAYS calendar days of wearable data.
+After that, each driver's change is its trailing BASELINE_DAYS mean minus the baseline.
+A window counts only with at least MIN_VALID_DAYS days of data. Through gaps and into
+the forecast the last known change is carried forward, which assumes the behaviour
+persists.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
 from datetime import date, timedelta
+from typing import cast
 
-import pandas as pd
+import polars as pl
 
 from src.components.personalization.biomarker_config import (
     BASELINE_DAYS,
@@ -21,94 +24,182 @@ from src.components.personalization.biomarker_config import (
     WEARABLE_FEATURES,
 )
 
+WearableRecord = Mapping[str, date | float | None]
+
+SHORT_WINDOW_DAYS = 7
+SHORT_WINDOW_MIN_DAYS = 4
+DAILY_SCHEMA = {"date": pl.Date, **{name: pl.Float64 for name in WEARABLE_FEATURES}}
+
 
 @dataclass(frozen=True)
 class WearableSummary:
-    first_date: date | None
-    baseline_end: date | None
-    baseline_ready: bool
-    baseline: dict[str, float | None]
-    # Latest trailing-window mean minus baseline, in natural units (steps per day, not thousands).
-    latest_delta: dict[str, float | None]
-    # Index: every calendar day of wearable data. Columns: <feature>_7d, <feature>_30d.
-    rolling: pd.DataFrame
+    """Baseline and trailing-window view of a user's wearable history.
+
+    Attributes:
+        first_date: First day with any wearable record, or None without data.
+        baseline_end: Last day of the baseline window, or None without data.
+        baseline_ready: Whether the baseline window has fully elapsed by as_of.
+        baseline: Baseline mean per feature. None when too few valid days.
+        latest_delta: Latest trailing mean minus baseline, in natural units.
+        rolling: One row per calendar day: date, <feature>_7d, <feature>_30d.
+    """
+
+    first_date: date | None = None
+    baseline_end: date | None = None
+    baseline_ready: bool = False
+    baseline: dict[str, float | None] = field(default_factory=dict)
+    latest_delta: dict[str, float | None] = field(default_factory=dict)
+    rolling: pl.DataFrame = field(default_factory=pl.DataFrame)
 
 
-def daily_frame(wearable_days: pd.DataFrame) -> pd.DataFrame:
-    """One row per calendar day from first to last record. Missing days are NaN."""
-    if wearable_days.empty:
-        return pd.DataFrame(columns=list(WEARABLE_FEATURES), index=pd.DatetimeIndex([]), dtype=float)
-    frame = wearable_days.copy()
-    frame["date"] = pd.to_datetime(frame["date"]).dt.normalize()
-    frame = frame.groupby("date").mean(numeric_only=True)
-    index = pd.date_range(frame.index.min(), frame.index.max(), freq="D")
-    frame = frame.reindex(index)
-    for column in WEARABLE_FEATURES:
-        if column not in frame.columns:
-            frame[column] = float("nan")
-    return frame[list(WEARABLE_FEATURES)].astype(float)
+def daily_frame(wearable_days: Sequence[WearableRecord]) -> pl.DataFrame:
+    """Build one row per calendar day from the first to the last record.
+
+    Days without a record get nulls. Several records on one day are averaged.
+
+    Args:
+        wearable_days: End-of-day records with a "date" key and optional features.
+
+    Returns:
+        Frame with "date" and every feature in WEARABLE_FEATURES.
+    """
+    records = [
+        {name: record.get(name) for name in DAILY_SCHEMA} for record in wearable_days
+    ]
+    frame = pl.DataFrame(records, schema=DAILY_SCHEMA)
+    if frame.is_empty():
+        return frame
+    frame = frame.group_by("date").agg(pl.col(WEARABLE_FEATURES).mean())
+    first = cast(date, frame["date"].min())
+    last = cast(date, frame["date"].max())
+    return calendar_frame(first, last).join(frame, on="date", how="left")
 
 
-def summarize(wearable_days: pd.DataFrame, as_of: date) -> WearableSummary:
-    daily = daily_frame(wearable_days)
-    daily = daily[daily.index <= pd.Timestamp(as_of)]
-    if daily.empty:
-        return WearableSummary(None, None, False, {}, {}, pd.DataFrame())
+def calendar_frame(start: date, end: date) -> pl.DataFrame:
+    """One row per calendar day from start to end inclusive.
 
-    first = daily.index.min()
-    baseline_end = first + timedelta(days=BASELINE_DAYS - 1)
-    ready = pd.Timestamp(as_of) >= baseline_end
-    window = daily[daily.index <= baseline_end]
+    Args:
+        start: First day.
+        end: Last day.
 
-    baseline: dict[str, float | None] = {}
-    for column in WEARABLE_FEATURES:
-        values = window[column].dropna()
-        baseline[column] = float(values.mean()) if ready and len(values) >= MIN_VALID_DAYS else None
+    Returns:
+        Frame with a single "date" column.
+    """
+    n_days = (end - start).days + 1
+    days = [start + timedelta(days=offset) for offset in range(n_days)]
+    return pl.DataFrame({"date": days}, schema={"date": pl.Date})
 
-    rolling = pd.DataFrame(index=daily.index)
-    for column in WEARABLE_FEATURES:
-        rolling[f"{column}_7d"] = daily[column].rolling(7, min_periods=4).mean()
-        rolling[f"{column}_30d"] = (
-            daily[column].rolling(BASELINE_DAYS, min_periods=MIN_VALID_DAYS).mean()
-        )
 
-    latest_delta: dict[str, float | None] = {}
-    for column in WEARABLE_FEATURES:
-        recent = rolling[f"{column}_30d"].dropna()
-        if baseline[column] is None or recent.empty:
-            latest_delta[column] = None
-        else:
-            latest_delta[column] = float(recent.iloc[-1] - baseline[column])
+def summarize(wearable_days: Sequence[WearableRecord], as_of: date) -> WearableSummary:
+    """Compute the user's baseline, trailing means, and latest change up to as_of.
 
+    Args:
+        wearable_days: End-of-day records with a "date" key and optional features.
+        as_of: Last day to use. Later records are ignored.
+
+    Returns:
+        The wearable summary. Empty when there is no data on or before as_of.
+    """
+    daily = daily_frame(wearable_days).filter(pl.col("date") <= as_of)
+    if daily.is_empty():
+        return WearableSummary()
+
+    first_date = cast(date, daily["date"].min())
+    baseline_end = first_date + timedelta(days=BASELINE_DAYS - 1)
+    ready = as_of >= baseline_end
+    baseline = _baseline_means(daily, baseline_end) if ready else {}
+
+    rolling = daily.select(
+        "date",
+        *(
+            pl.col(name)
+            .rolling_mean(SHORT_WINDOW_DAYS, min_samples=SHORT_WINDOW_MIN_DAYS)
+            .alias(f"{name}_7d")
+            for name in WEARABLE_FEATURES
+        ),
+        *(
+            pl.col(name)
+            .rolling_mean(BASELINE_DAYS, min_samples=MIN_VALID_DAYS)
+            .alias(f"{name}_30d")
+            for name in WEARABLE_FEATURES
+        ),
+    )
+    latest = rolling.select(
+        pl.col(f"{name}_30d").drop_nulls().last().alias(name)
+        for name in WEARABLE_FEATURES
+    ).row(0, named=True)
+    latest_delta = {
+        name: None
+        if baseline.get(name) is None or latest[name] is None
+        else latest[name] - baseline[name]
+        for name in WEARABLE_FEATURES
+    }
     return WearableSummary(
-        first_date=first.date(),
-        baseline_end=baseline_end.date(),
-        baseline_ready=bool(ready),
-        baseline=baseline,
+        first_date=first_date,
+        baseline_end=baseline_end,
+        baseline_ready=ready,
+        baseline={name: baseline.get(name) for name in WEARABLE_FEATURES},
         latest_delta=latest_delta,
         rolling=rolling,
     )
 
 
-def driver_deltas(summary: WearableSummary, start: date, end: date) -> pd.DataFrame:
+def _baseline_means(daily: pl.DataFrame, baseline_end: date) -> dict[str, float | None]:
+    """Mean of each feature over the baseline window, if it has enough valid days."""
+    window = daily.filter(pl.col("date") <= baseline_end)
+    row = window.select(
+        pl.when(pl.col(name).count() >= MIN_VALID_DAYS)
+        .then(pl.col(name).mean())
+        .alias(name)
+        for name in WEARABLE_FEATURES
+    ).row(0, named=True)
+    return {name: row[name] for name in WEARABLE_FEATURES}
+
+
+def driver_deltas(summary: WearableSummary, start: date, end: date) -> pl.DataFrame:
     """Daily driver changes over [start, end] in model units (steps in thousands).
 
-    The value is zero until the baseline window closes and is carried forward after the last
-    valid window.
-    """
-    index = pd.date_range(pd.Timestamp(start), pd.Timestamp(end), freq="D")
-    deltas = pd.DataFrame(0.0, index=index, columns=list(DRIVER_FEATURES))
-    if summary.baseline_end is None or not summary.baseline_ready:
-        return deltas
+    Zero until the baseline window closes, then carried forward after the last valid
+    trailing window.
 
-    after_baseline = summary.rolling.index > pd.Timestamp(summary.baseline_end)
-    for column in DRIVER_FEATURES:
-        base = summary.baseline.get(column)
-        if base is None:
-            continue
-        series = summary.rolling.loc[after_baseline, f"{column}_30d"] - base
-        series = series.reindex(index).ffill().fillna(0.0)
-        # Before the baseline closes there is no change to measure.
-        series[index <= pd.Timestamp(summary.baseline_end)] = 0.0
-        deltas[column] = series / FEATURE_SCALE.get(column, 1.0)
-    return deltas
+    Args:
+        summary: Output of summarize().
+        start: First day of the filter timeline.
+        end: Last day of the filter timeline, including the forecast horizon.
+
+    Returns:
+        Frame with "date" and one column per driver in DRIVER_FEATURES.
+    """
+    calendar = calendar_frame(start, end)
+    baseline_end = summary.baseline_end
+    usable = [
+        name for name in DRIVER_FEATURES if summary.baseline.get(name) is not None
+    ]
+    if not summary.baseline_ready or baseline_end is None or not usable:
+        return calendar.with_columns(
+            pl.lit(0.0).alias(name) for name in DRIVER_FEATURES
+        )
+
+    changes = summary.rolling.filter(pl.col("date") > baseline_end).select(
+        "date",
+        *(
+            (
+                (pl.col(f"{name}_30d") - summary.baseline[name])
+                / FEATURE_SCALE.get(name, 1.0)
+            ).alias(name)
+            for name in usable
+        ),
+    )
+    after_baseline = pl.col("date") > baseline_end
+    return calendar.join(changes, on="date", how="left").select(
+        "date",
+        *(
+            pl.when(after_baseline)
+            .then(pl.col(name).forward_fill().fill_null(0.0))
+            .otherwise(0.0)
+            .alias(name)
+            if name in usable
+            else pl.lit(0.0).alias(name)
+            for name in DRIVER_FEATURES
+        ),
+    )
