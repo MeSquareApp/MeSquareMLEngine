@@ -5,9 +5,19 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.components.prevent import SEX_FEMALE, SEX_MALE, PreventInputs, prevent_risk
+from src.components.prevent import (
+    SEX_FEMALE,
+    SEX_MALE,
+    PreventInputs,
+    prevent_available,
+    prevent_risk,
+)
 
-# preventr reference: age 50, TC 200, HDL 45, SBP 160 treated, diabetes, non-smoker,
+pytestmark = pytest.mark.skipif(
+    not prevent_available(), reason="R or the AHAprevent package is not installed"
+)
+
+# Published preventr reference case, an independent implementation: age 50, TC 200, HDL 45, SBP 160 treated, diabetes, non-smoker,
 # eGFR 90, BMI 35, no statin. Published 10-year base-model risks.
 REFERENCE = {
     2: {"total_cvd": 0.147, "ascvd": 0.092, "heart_failure": 0.081},
@@ -28,7 +38,7 @@ def reference_inputs(sex: int, **overrides) -> PreventInputs:
 def test_matches_reference(sex):
     risk = prevent_risk(reference_inputs(sex))
     for outcome, expected in REFERENCE[sex].items():
-        assert round(float(risk[outcome]), 3) == expected
+        assert round(float(risk[outcome][0]), 3) == expected
 
 
 def test_vectorized_samples():
@@ -98,6 +108,6 @@ def test_matches_official_package_on_its_test_data():
             )
         )
         for outcome, official_name in (("total_cvd", "cvd"), ("ascvd", "ascvd"), ("heart_failure", "hf")):
-            assert float(ours[outcome]) == pytest.approx(
+            assert float(ours[outcome][0]) == pytest.approx(
                 _official_risk(row, betas, official_name), rel=1e-6
             )

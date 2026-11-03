@@ -1,81 +1,55 @@
-"""AHA PREVENT base model, 10-year risk of total CVD, ASCVD, and heart failure.
+"""AHA PREVENT 10-year risk, computed by the official AHA R package.
 
-Port of the official AHA PREVENT package v1.1.0 (github.com/AHA-DS-Analytics/PREVENT,
-`pred_risk_base` in R and `aha_prevent_base` in Stata). tests/test_prevent.py checks these
-coefficients against the package's `prevent_beta10_2024.dta` whenever a PREVENT checkout is
-available. Inputs are vectorized so posterior samples can go through in one call.
+All risk numbers come from `AHAprevent::prevent_base()` (AHA-DS-Analytics/PREVENT, v1.1.0),
+called in-process through rpy2. This module only converts inputs and outputs. It never
+computes risk itself, and there is no fallback when R or the package is missing.
 
-Sex uses NHANES codes here (1 = male, 2 = female). The official package uses 0 = male,
-1 = female.
+Install the package: R CMD INSTALL AHAprevent_1.1.0.tar.gz (from the PREVENT repo).
 """
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass
+from functools import lru_cache
 
 import numpy as np
 
-# mmol_conversion() in the official package.
-MMOL_L_PER_MG_DL = 0.02586
+from src.utils.exception import MeSquareError
+
+PACKAGE = "AHAprevent"
 SEX_MALE = 1
 SEX_FEMALE = 2
 AGE_RANGE = (30, 79)
-# Validated input ranges from aha_prevent_base.ado. Outside them, Stata returns missing.
+OUTCOMES = ("total_cvd", "ascvd", "heart_failure")
+# Columns of prevent_base() for each outcome, 10-year horizon.
+_OUTPUT_COLUMNS = {
+    "total_cvd": "prevent_base_10yr_CVD",
+    "ascvd": "prevent_base_10yr_ASCVD",
+    "heart_failure": "prevent_base_10yr_HF",
+}
+# Validated input ranges from aha_prevent_base.ado. Outside them, the Stata package returns missing.
 VALIDATED_RANGES = {
     "total_chol": (130.0, 320.0),
     "hdl": (20.0, 100.0),
     "sbp": (90.0, 200.0),
     "bmi": (18.5, 39.99),
 }
-OUTCOMES = ("total_cvd", "ascvd", "heart_failure")
 
-# Order: const, cage, cnhdl, chdl, csbp_lo, csbp_hi, dm, smoking, cegfr_lo, cegfr_hi, bptx, statin,
-# bptx*csbp_hi, statin*cnhdl, cage*cnhdl, cage*chdl, cage*csbp_hi, cage*dm, cage*smoking,
-# cage*cegfr_lo
-_LIPID_TERMS = {
-    ("total_cvd", SEX_FEMALE): (
-        -3.307728, 0.7939329, 0.0305239, -0.1606857, -0.2394003, 0.360078, 0.8667604,
-        0.5360739, 0.6045917, 0.0433769, 0.3151672, -0.1477655, -0.0663612, 0.1197879,
-        -0.0819715, 0.0306769, -0.0946348, -0.27057, -0.078715, -0.1637806,
-    ),
-    ("total_cvd", SEX_MALE): (
-        -3.031168, 0.7688528, 0.0736174, -0.0954431, -0.4347345, 0.3362658, 0.7692857,
-        0.4386871, 0.5378979, 0.0164827, 0.288879, -0.1337349, -0.0475924, 0.150273,
-        -0.0517874, 0.0191169, -0.1049477, -0.2251948, -0.0895067, -0.1543702,
-    ),
-    ("ascvd", SEX_FEMALE): (
-        -3.819975, 0.719883, 0.1176967, -0.151185, -0.0835358, 0.3592852, 0.8348585,
-        0.4831078, 0.4864619, 0.0397779, 0.2265309, -0.0592374, -0.0395762, 0.0844423,
-        -0.0567839, 0.0325692, -0.1035985, -0.2417542, -0.0791142, -0.1671492,
-    ),
-    ("ascvd", SEX_MALE): (
-        -3.500655, 0.7099847, 0.1658663, -0.1144285, -0.2837212, 0.3239977, 0.7189597,
-        0.3956973, 0.3690075, 0.0203619, 0.2036522, -0.0865581, -0.0322916, 0.114563,
-        -0.0300005, 0.0232747, -0.0927024, -0.2018525, -0.0970527, -0.1217081,
-    ),
-}
+# The embedded R interpreter is not thread-safe, and FastAPI runs sync endpoints in a threadpool.
+_R_LOCK = threading.Lock()
 
-# Order: const, cage, csbp_lo, csbp_hi, dm, smoking, cbmi_lo, cbmi_hi, cegfr_lo, cegfr_hi, bptx,
-# bptx*csbp_hi, cage*csbp_hi, cage*dm, cage*smoking, cage*cbmi_hi, cage*cegfr_lo
-_HF_TERMS = {
-    SEX_FEMALE: (
-        -4.310409, 0.8998235, -0.4559771, 0.3576505, 1.038346, 0.583916, -0.0072294,
-        0.2997706, 0.7451638, 0.0557087, 0.3534442, -0.0981511, -0.0946663, -0.3581041,
-        -0.1159453, -0.003878, -0.1884289,
-    ),
-    SEX_MALE: (
-        -3.946391, 0.8972642, -0.6811466, 0.3634461, 0.923776, 0.5023736, -0.0485841,
-        0.3726929, 0.6926917, 0.0251827, 0.2980922, -0.0497731, -0.1289201, -0.3040924,
-        -0.1401688, 0.0068126, -0.1797778,
-    ),
-}
+
+class PreventUnavailableError(MeSquareError):
+    """Raised when R or the AHAprevent package cannot be loaded."""
 
 
 @dataclass(frozen=True)
 class PreventInputs:
     """Cholesterol in mg/dL, SBP in mmHg, BMI in kg/m2, eGFR in mL/min/1.73m2.
 
-    Flags are 0/1. Any field may be an array of samples.
+    Sex uses NHANES codes (1 = male, 2 = female). Flags are 0/1. Any field may be an array of
+    samples.
     """
 
     age: float
@@ -91,55 +65,79 @@ class PreventInputs:
     statin: float
 
 
-def _logistic(z: np.ndarray) -> np.ndarray:
-    return 1.0 / (1.0 + np.exp(-z))
+@lru_cache(maxsize=1)
+def _package():
+    try:
+        from rpy2.robjects import default_converter
+        from rpy2.robjects.conversion import localconverter
+        from rpy2.robjects.packages import importr
+    except Exception as error:  # rpy2 raises various errors when R itself is missing
+        raise PreventUnavailableError(f"rpy2/R is not available: {error}") from error
+    try:
+        with _R_LOCK, localconverter(default_converter):
+            return importr(PACKAGE)
+    except Exception as error:
+        raise PreventUnavailableError(f"R package {PACKAGE} is not installed: {error}") from error
+
+
+def init_prevent() -> bool:
+    """Start R and load the package. Call once from the main thread at app startup."""
+    return prevent_available()
+
+
+def prevent_available() -> bool:
+    try:
+        _package()
+    except PreventUnavailableError:
+        return False
+    return True
 
 
 def prevent_risk(inputs: PreventInputs) -> dict[str, np.ndarray]:
-    """10-year risks as fractions. Raises ValueError outside the validated age range."""
+    """10-year risks as fractions, one per sample. Raises ValueError outside ages 30-79."""
     if not AGE_RANGE[0] <= inputs.age <= AGE_RANGE[1]:
         raise ValueError(f"PREVENT is valid for ages {AGE_RANGE[0]}-{AGE_RANGE[1]}")
     if inputs.sex not in (SEX_MALE, SEX_FEMALE):
         raise ValueError(f"Unsupported sex code: {inputs.sex!r}")
 
-    total_chol = np.asarray(inputs.total_chol, dtype=float)
-    hdl = np.asarray(inputs.hdl, dtype=float)
-    sbp = np.asarray(inputs.sbp, dtype=float)
-    bmi = np.asarray(inputs.bmi, dtype=float)
-    egfr = np.asarray(inputs.egfr, dtype=float)
-    dm = np.asarray(inputs.diabetes, dtype=float)
-    smk = float(inputs.smoking)
-    bptx = float(inputs.bp_treated)
-    statin = float(inputs.statin)
-
-    cage = (inputs.age - 55.0) / 10.0
-    cnhdl = (total_chol - hdl) * MMOL_L_PER_MG_DL - 3.5
-    chdl = (hdl * MMOL_L_PER_MG_DL - 1.3) / 0.3
-    csbp_lo = (np.minimum(sbp, 110.0) - 110.0) / 20.0
-    csbp_hi = (np.maximum(sbp, 110.0) - 130.0) / 20.0
-    cegfr_lo = (np.minimum(egfr, 60.0) - 60.0) / -15.0
-    cegfr_hi = (np.maximum(egfr, 60.0) - 90.0) / -15.0
-    cbmi_lo = (np.minimum(bmi, 30.0) - 25.0) / 5.0
-    cbmi_hi = (np.maximum(bmi, 30.0) - 30.0) / 5.0
-
-    lipid_x = (
-        1.0, cage, cnhdl, chdl, csbp_lo, csbp_hi, dm, smk, cegfr_lo, cegfr_hi, bptx, statin,
-        bptx * csbp_hi, statin * cnhdl, cage * cnhdl, cage * chdl, cage * csbp_hi, cage * dm,
-        cage * smk, cage * cegfr_lo,
-    )
-    hf_x = (
-        1.0, cage, csbp_lo, csbp_hi, dm, smk, cbmi_lo, cbmi_hi, cegfr_lo, cegfr_hi, bptx,
-        bptx * csbp_hi, cage * csbp_hi, cage * dm, cage * smk, cage * cbmi_hi, cage * cegfr_lo,
-    )
-
-    def linear(coefs: tuple[float, ...], terms: tuple) -> np.ndarray:
-        return sum(c * x for c, x in zip(coefs, terms, strict=True))
-
-    return {
-        "total_cvd": _logistic(linear(_LIPID_TERMS[("total_cvd", inputs.sex)], lipid_x)),
-        "ascvd": _logistic(linear(_LIPID_TERMS[("ascvd", inputs.sex)], lipid_x)),
-        "heart_failure": _logistic(linear(_HF_TERMS[inputs.sex], hf_x)),
+    columns = {
+        "tc": inputs.total_chol,
+        "hdl": inputs.hdl,
+        "sbp": inputs.sbp,
+        "dm": inputs.diabetes,
+        "smoking": inputs.smoking,
+        "bmi": inputs.bmi,
+        "egfr": inputs.egfr,
+        "bptreat": inputs.bp_treated,
+        "statin": inputs.statin,
     }
+    n = max(np.size(value) for value in columns.values())
+    vectors = {name: np.broadcast_to(np.asarray(value, dtype=float), (n,)) for name, value in columns.items()}
+    # The official package codes sex as 0 = male, 1 = female.
+    sex = np.full(n, 0.0 if inputs.sex == SEX_MALE else 1.0)
+    age = np.full(n, float(inputs.age))
+
+    from rpy2.robjects import FloatVector, default_converter
+    from rpy2.robjects.conversion import localconverter
+
+    package = _package()
+    # Conversion rules live in a ContextVar that worker threads do not inherit, so set them here.
+    with _R_LOCK, localconverter(default_converter):
+        result = package.prevent_base(
+            FloatVector(sex),
+            FloatVector(age),
+            *(FloatVector(vectors[name]) for name in (
+                "tc", "hdl", "sbp", "dm", "smoking", "bmi", "egfr", "bptreat", "statin"
+            )),
+        )
+        # prevent_base() builds its data frame from a Vectorize() matrix, so each column is a
+        # list of length-1 numeric vectors. NULL or NA cells become NaN.
+        frame = {
+            name: np.array([float(cell[0]) if len(cell) else np.nan for cell in result.rx2(name)])
+            for name in _OUTPUT_COLUMNS.values()
+        }
+    # The package reports percentages. The engine works in fractions.
+    return {outcome: frame[column] / 100.0 for outcome, column in _OUTPUT_COLUMNS.items()}
 
 
 def clip_to_validated(name: str, values):

@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException, Request
 from config.settings import settings
 from src.components.model_artifact import ArtifactError, QuantileModelBundle
 from src.components.personalization.biomarker_config import BIOMARKERS
+from src.components.prevent import init_prevent
 from src.pipeline.prediction_pipeline import QuantilePredictor
 from src.pipeline.twin_pipeline import TwinResult, predict_twin
 from src.schemas.prediction import PredictRequest, PredictResponse
@@ -29,6 +30,9 @@ def _load_predictor() -> QuantilePredictor | None:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.predictor = _load_predictor()
+    # Embedded R must start on the main thread, before requests run in worker threads.
+    if not init_prevent():
+        logger.warning("AHA PREVENT R package not available; twin responses will omit PREVENT")
     yield
 
 

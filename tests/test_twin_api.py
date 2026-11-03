@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import app
+from src.components.prevent import prevent_available
 from tests.conftest import StubPrior, make_wearables
 
 START = date(2026, 1, 1)
@@ -48,7 +49,10 @@ def test_scenario_a_wearables_only(client, twin_profile):
     assert sbp["current"]["basis"] == "estimated"
     assert sbp["current"]["q50"] < sbp["prior"]["q50"]
     assert len(sbp["trajectory"]) == 120 + 60
-    assert set(body["prevent"]) == {"population_prior", "current", "forecast"}
+    if prevent_available():
+        assert set(body["prevent"]) == {"population_prior", "current", "forecast"}
+    else:
+        assert body["prevent"] == {} and body["prevent_note"]
 
 
 def test_scenario_a_before_baseline_returns_prior(client, twin_profile):

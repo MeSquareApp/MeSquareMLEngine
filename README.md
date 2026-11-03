@@ -80,7 +80,7 @@ curl -s http://localhost:8000/v1/predict \
 1. **Prior.** The latest quantile bundle gives population p10/p50/p90 for the profile.
 2. **Labs.** A 1-D Kalman update per biomarker. Measurement noise is analytical plus within-person CV.
 3. **Wearables.** The first 30 days set the user's own baseline. After that, the change in the 30-day trailing mean moves each biomarker through literature effect sizes and a first-order lag (`src/components/personalization/biomarker_config.py`).
-4. **PREVENT.** Monte-Carlo samples from the biomarker posteriors go through the AHA PREVENT base equations, ported from the official package v1.1.0. The response has `population_prior`, `current`, and `forecast` 10-year risks.
+4. **PREVENT.** Monte-Carlo samples from the biomarker posteriors go through the official AHA PREVENT R package (`AHAprevent::prevent_base`, v1.1.0), called in-process with rpy2. The engine never computes risk itself. The response has `population_prior`, `current`, and `forecast` 10-year risks.
 
 Every trajectory point carries a `basis`:
 - `prior`: no data yet
@@ -89,7 +89,20 @@ Every trajectory point carries a `basis`:
 
 It also carries a `confidence` label. `notebooks/personalization_twin.ipynb` prototypes and validates the full flow on simulated users.
 
-`tests/test_prevent.py` checks the PREVENT coefficients against the official `prevent_beta10_2024.dta` when an AHA PREVENT checkout is found. Set `PREVENT_REPO_DIR`, or keep it as a sibling `PREVENT/` folder.
+### AHA PREVENT (R) setup
+
+PREVENT results require R and the official package from the AHA-DS-Analytics/PREVENT repo. If either is missing, the API still answers, but `prevent` is empty and `prevent_note` says why.
+
+```bash
+brew install r
+R CMD INSTALL ../PREVENT/AHAprevent_1.1.0.tar.gz
+```
+
+On a Linux server or in Docker, install R (`r-base`) and run the same `R CMD INSTALL`. `rpy2` finds R through `R_HOME` or the `R` on `PATH`.
+
+The package is GPL-3. Have whoever handles licensing review how it ships with the service.
+
+`tests/test_prevent.py` checks the installed package against a published reference case. It also checks it against the official `prevent_beta10_2024.dta` and `prevent_test.dta` when a PREVENT checkout is found. Set `PREVENT_REPO_DIR`, or keep it as a sibling `PREVENT/` folder.
 
 ## Layout
 

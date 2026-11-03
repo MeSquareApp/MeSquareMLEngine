@@ -26,12 +26,14 @@ from src.components.prevent import (
     AGE_RANGE,
     PreventInputs,
     clip_to_validated,
+    prevent_available,
     prevent_risk,
     summarize_risk,
 )
 
 DEFAULT_HORIZON_DAYS = 90
-DEFAULT_SAMPLES = 2000
+# Each sample is one row through the official R package, which evaluates rows one at a time.
+DEFAULT_SAMPLES = 500
 HBA1C_DIABETES = 6.5
 
 
@@ -137,6 +139,8 @@ def biomarker_samples(
 def _prevent_views(
     twin: TwinResult, profile: dict, end: date, n_samples: int, seed: int
 ) -> tuple[dict, str | None]:
+    if not prevent_available():
+        return {}, "AHA PREVENT R package is not available"
     age = float(profile["age"])
     if not AGE_RANGE[0] <= age <= AGE_RANGE[1]:
         return {}, f"PREVENT is valid for ages {AGE_RANGE[0]}-{AGE_RANGE[1]}"
