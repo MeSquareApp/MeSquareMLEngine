@@ -79,3 +79,16 @@ def test_new_version_id_format():
     assert len(version) == expected_length
     assert version[8] == "T"
     assert version.endswith("Z")
+
+
+def test_load_reads_single_number_widening_from_older_bundles(tiny_bundle, tmp_path):
+    # Arrange
+    tiny_bundle.version = "20251201T0000Z"
+    tiny_bundle.interval_widening = {"hdl": 1.5}  # type: ignore[dict-item]
+    tiny_bundle.save(tmp_path)
+
+    # Act
+    loaded = QuantileModelBundle.load(tmp_path / "20251201T0000Z")
+
+    # Assert
+    assert loaded.interval_widening == {"hdl": {"all": 1.5}}

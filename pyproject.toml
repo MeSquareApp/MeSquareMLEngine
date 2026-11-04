@@ -51,6 +51,8 @@ convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["D"]
+# Cells reload modules and define helpers; they are not the public API.
+"notebooks/**/*.ipynb" = ["D", "E402", "E501", "E741", "B905"]
 
 [tool.mypy]
 python_version = "3.14"

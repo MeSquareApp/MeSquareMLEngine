@@ -15,6 +15,8 @@ from src.components.model_config import FEATURES, QUANTILES, TARGETS, CategoryLe
 from src.utils.exception import MeSquareError
 
 MODEL_FILENAME = "model.joblib"
+# Older bundles stored one widening per target; it becomes the pooled group value.
+POOLED_WIDENING = "all"
 METADATA_FILENAME = "metadata.json"
 GIT_TIMEOUT_SECONDS = 5
 
@@ -122,7 +124,10 @@ class QuantileModelBundle:
             quantiles=tuple(float(tau) for tau in payload["quantiles"]),
             targets=tuple(payload.get("targets") or TARGETS),
             training_row_counts=dict(payload.get("training_row_counts") or {}),
-            interval_widening=dict(payload.get("interval_widening") or {}),
+            interval_widening={
+                target: table if isinstance(table, dict) else {POOLED_WIDENING: table}
+                for target, table in (payload.get("interval_widening") or {}).items()
+            },
             git_sha=payload.get("git_sha"),
             trained_at=payload.get("trained_at"),
         )

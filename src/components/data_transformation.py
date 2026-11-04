@@ -1,5 +1,8 @@
+"""Map NHANES transport files to Postgres tables and Python values."""
+
 import math
 from dataclasses import dataclass
+from typing import Any, cast
 
 import pandas as pd
 
@@ -58,7 +61,7 @@ EXPECTED_RANGES = {
 
 SAS_DUST_THRESHOLD = 1e-10
 
-# Permanent names from the earlier layout. The loader drops them; the current scripts use temp tables.
+# Earlier layout names. The loader drops them; current scripts use temp tables.
 NHANES_CORE_TABLES = (
     "ml.demographics",
     "ml.bpq",
@@ -76,6 +79,8 @@ _SAS_TYPES = {"double": "numeric", "string": "char"}
 
 @dataclass(frozen=True)
 class Column:
+    """One SAS column after names are lowercased for Postgres."""
+
     name: str
     sas_type: str
     label: str
@@ -83,6 +88,8 @@ class Column:
 
 @dataclass(frozen=True)
 class ImportResult:
+    """Row count recorded after one table is replaced."""
+
     filename: str
     table_name: str
     row_count: int
@@ -90,18 +97,22 @@ class ImportResult:
 
 @dataclass
 class Dataset:
+    """One NHANES file ready to copy into Postgres."""
+
     filename: str
     table_name: str
     columns: tuple[Column, ...]
     frame: pd.DataFrame
 
     def uses_seqn_primary_key(self) -> bool:
+        """Return whether seqn is present, complete, and unique."""
         if "seqn" not in self.frame.columns:
             return False
         seqn = self.frame["seqn"]
         return bool(seqn.notna().all() and seqn.nunique(dropna=True) == len(self.frame))
 
     def copy_records(self) -> list[tuple[float | str | None, ...]]:
+        """Return rows as Python values suitable for COPY."""
         sas_types = {column.name: column.sas_type for column in self.columns}
         return [
             tuple(
@@ -113,6 +124,7 @@ class Dataset:
 
 
 def table_name(filename: str) -> str:
+    """Return the lowercase Postgres table mapped to a transport file."""
     try:
         name = TABLE_NAMES[filename.rsplit("/", 1)[-1]]
     except KeyError as error:
@@ -123,6 +135,7 @@ def table_name(filename: str) -> str:
 
 
 def postgres_type(sas_type: str) -> str:
+    """Map a SAS type name to a Postgres column type."""
     if sas_type == "numeric":
         return "double precision"
     if sas_type == "char":
@@ -131,6 +144,7 @@ def postgres_type(sas_type: str) -> str:
 
 
 def storage_url(base_url: str, filename: str) -> str:
+    """Join the NHANES storage base URL and a transport filename."""
     return f"{base_url.rstrip('/')}/{filename}"
 
 
@@ -139,6 +153,7 @@ def columns_from_metadata(
     labels: list[str | None],
     variable_types: dict[str, str],
 ) -> tuple[Column, ...]:
+    """Build column metadata from pyreadstat names, labels, and types."""
     columns: list[Column] = []
     for name, label in zip(names, labels, strict=True):
         try:
@@ -148,18 +163,27 @@ def columns_from_metadata(
         column_name = name.lower()
         if not is_safe_identifier(column_name):
             raise IngestError(f"Unsafe column name {name!r}")
-        columns.append(Column(name=column_name, sas_type=sas_type, label=(label or "").strip()))
+        columns.append(
+            Column(name=column_name, sas_type=sas_type, label=(label or "").strip())
+        )
     return tuple(columns)
 
 
-def python_value(value: object, sas_type: str) -> float | str | None:
+def _is_missing(value: object) -> bool:
+    """Return whether a SAS cell is null, including pandas missing values."""
     if value is None:
-        return None
+        return True
     try:
-        if pd.isna(value):
-            return None
-    except TypeError:
-        pass
+        missing = pd.isna(cast(Any, value))
+    except TypeError, ValueError:
+        return False
+    return missing if isinstance(missing, bool) else False
+
+
+def python_value(value: object, sas_type: str) -> float | str | None:
+    """Convert one SAS cell to a Postgres-ready Python value."""
+    if _is_missing(value):
+        return None
     if sas_type == "char":
         if isinstance(value, bytes | bytearray):
             text = bytes(value).decode("latin1")
