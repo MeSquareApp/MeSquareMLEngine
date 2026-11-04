@@ -1,0 +1,147 @@
+{
+  "version": "activation-20261103T2208Z",
+  "lab": {
+    "non_hdl": {
+      "active": true,
+      "evidence": {
+        "method": "simulation",
+        "prior": "20261103T2208Z",
+        "rows": 1021.0,
+        "lab_median_abs_error": 9.2690995223263,
+        "population_median_abs_error": 19.709573631053573,
+        "error_reduction": 0.5297158783931126,
+        "lab_coverage_80": 0.8187342605686224,
+        "population_coverage_80": 0.8096808277945705,
+        "width_ratio": 0.445385861294204,
+        "false_alert_rate": 0.04267107205068985,
+        "min_width_ratio_possible": 0.3744760493007205,
+        "goal1_error_reduction_met": true,
+        "goal2_coverage_met": true,
+        "goal3_width_met": false,
+        "goal5_false_alerts_met": true,
+        "beats_population": true
+      }
+    },
+    "hdl": {
+      "active": true,
+      "evidence": {
+        "method": "simulation",
+        "prior": "20261103T2208Z",
+        "rows": 1021.0,
+        "lab_median_abs_error": 3.37833334289396,
+        "population_median_abs_error": 6.878442036435828,
+        "error_reduction": 0.5088519573184489,
+        "lab_coverage_80": 0.821067072310594,
+        "population_coverage_80": 0.7976444440946739,
+        "width_ratio": 0.4725884882952067,
+        "false_alert_rate": 0.04267107205068985,
+        "min_width_ratio_possible": 0.4189956925599226,
+        "goal1_error_reduction_met": true,
+        "goal2_coverage_met": true,
+        "goal3_width_met": false,
+        "goal5_false_alerts_met": true,
+        "beats_population": true
+      }
+    },
+    "hba1c": {
+      "active": true,
+      "evidence": {
+        "method": "simulation",
+        "prior": "20261103T2208Z",
+        "rows": 1082.0,
+        "lab_median_abs_error": 0.18768945407995918,
+        "population_median_abs_error": 0.2647130083432465,
+        "error_reduction": 0.29097003862920434,
+        "lab_coverage_80": 0.7954797441100806,
+        "population_coverage_80": 0.729914198786807,
+        "width_ratio": 0.5831493994734909,
+        "false_alert_rate": 0.04766837367103438,
+        "min_width_ratio_possible": 0.4339638428880734,
+        "goal1_error_reduction_met": false,
+        "goal2_coverage_met": true,
+        "goal3_width_met": false,
+        "goal5_false_alerts_met": true,
+        "beats_population": true
+      }
+    },
+    "egfr": {
+      "active": true,
+      "evidence": {
+        "method": "simulation",
+        "prior": "20261103T2208Z",
+        "rows": 1014.0,
+        "lab_median_abs_error": 5.270420164826177,
+        "population_median_abs_error": 10.07307528484553,
+        "error_reduction": 0.47678141820747855,
+        "lab_coverage_80": 0.8123209100712135,
+        "population_coverage_80": 0.7270364957718386,
+        "width_ratio": 0.6023280619098411,
+        "false_alert_rate": 0.04546658421792067,
+        "min_width_ratio_possible": 0.5644866588241193,
+        "goal1_error_reduction_met": true,
+        "goal2_coverage_met": true,
+        "goal3_width_met": false,
+        "goal5_false_alerts_met": true,
+        "beats_population": true
+      }
+    },
+    "sbp": {
+      "active": true,
+      "evidence": {
+        "method": "simulation",
+        "prior": "20261103T2208Z",
+        "rows": 1118.0,
+        "lab_median_abs_error": 7.156323963592001,
+        "population_median_abs_error": 9.716992830216554,
+        "error_reduction": 0.2635248282433369,
+        "lab_coverage_80": 0.8012062313688108,
+        "population_coverage_80": 0.6876571401966727,
+        "width_ratio": 0.8267459778471699,
+        "false_alert_rate": 0.056732110498707286,
+        "min_width_ratio_possible": 0.7499985891896982,
+        "goal1_error_reduction_met": false,
+        "goal2_coverage_met": true,
+        "goal3_width_met": false,
+        "goal5_false_alerts_met": false,
+        "beats_population": true
+      }
+    }
+  },
+  "wearable": {
+    "non_hdl": {
+      "active": false,
+      "evidence": {
+        "reason": "No real consented wearable-to-lab pairs yet; adjustments run in shadow mode until gate_residual_model() passes on them.",
+        "eligible": true
+      }
+    },
+    "hdl": {
+      "active": false,
+      "evidence": {
+        "reason": "No real consented wearable-to-lab pairs yet; adjustments run in shadow mode until gate_residual_model() passes on them.",
+        "eligible": true
+      }
+    },
+    "hba1c": {
+      "active": false,
+      "evidence": {
+        "reason": "No real consented wearable-to-lab pairs yet; adjustments run in shadow mode until gate_residual_model() passes on them.",
+        "eligible": true
+      }
+    },
+    "egfr": {
+      "active": false,
+      "evidence": {
+        "reason": "eGFR stays lab-only",
+        "eligible": false
+      }
+    },
+    "sbp": {
+      "active": false,
+      "evidence": {
+        "reason": "No real consented wearable-to-lab pairs yet; adjustments run in shadow mode until gate_residual_model() passes on them.",
+        "eligible": false
+      }
+    }
+  }
+}

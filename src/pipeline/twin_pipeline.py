@@ -1,374 +1,484 @@
-"""Digital twin: population prior, lab updates, wearable drift, then PREVENT risk.
+"""Digital twin state: personalized bands per analyte plus a PREVENT risk response.
 
-Stateless: the caller sends the user's full lab and wearable history each time, and the
-twin is recomputed from scratch. Each biomarker runs its own 1-D filter, so this is
-cheap.
+Stages, per analyte (see the activation registry for what may be served):
+
+0. Population: the NHANES quantile prior for the profile ("population").
+1. First lab: a band centred on the latest measured lab ("lab").
+2. Repeat labs: the latest lab anchors; the previous one feeds a 95% RCV change flag.
+3. Wearables: a residual adjustment ("population_wearable" / "lab_wearable"),
+   computed in shadow mode and served only once activated.
+
+Stateless: the backend sends the profile and every record each time.
 """
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import date, timedelta
-from typing import Protocol
+from datetime import UTC, date, datetime, timedelta
+from typing import Literal, Protocol
 
 import numpy as np
-import polars as pl
+import orjson
 
-from src.components.egfr import egfr_ckd_epi_2021
+from src.components.analytes import MODEL_ANALYTES
+from src.components.personalization.activation import ActivationRegistry
 from src.components.personalization.biomarker_config import BIOMARKERS
-from src.components.personalization.distributions import (
-    FloatArray,
-    inverse,
-    normal_from_quantiles,
+from src.components.personalization.lab_anchor import (
+    ChangeFlag,
+    TreatmentChanges,
+    anchoring_labs,
+    change_flag,
+    lab_band,
 )
-from src.components.personalization.kalman import FilterResult, Prior, run_filter
-from src.components.personalization.wearable_features import (
-    WearableRecord,
-    WearableSummary,
-    driver_deltas,
-    summarize,
+from src.components.personalization.residual_model import (
+    MIN_DAYS_AFTER_LAB,
+    ResidualMode,
+    ResidualModel,
 )
-from src.components.prevent import (
-    AGE_RANGE,
-    PreventInputs,
-    clip_to_validated,
-    prevent_available,
-    prevent_risk,
-    share_outside_validated,
-    summarize_risk,
+from src.components.personalization.wearable_windows import (
+    FEATURE_NAMES,
+    WindowSummary,
+    feature_vector,
+    feature_windows,
+)
+from src.components.prevent import AGE_RANGE, prevent_available
+from src.components.record_ingestion import (
+    Measurement,
+    RawRecord,
+    Rejection,
+    ingest_records,
+)
+from src.components.risk import (
+    InputEstimate,
+    RiskAssessment,
+    RiskProfile,
+    assess_risk,
 )
 
-ProfileValue = str | float | int | None
-Profile = Mapping[str, ProfileValue]
-LabRecord = Mapping[str, date | str | float]
-RiskSummary = dict[str, dict[str, float]]
-# Share of Monte-Carlo samples clipped into PREVENT's validated range, per input.
-RangeFlags = dict[str, float]
+Profile = Mapping[str, object]
+Basis = Literal["population", "lab", "population_wearable", "lab_wearable"]
+Band = tuple[float, float, float]
 
-DEFAULT_HORIZON_DAYS = 90
-# Each sample is one row through the official R package, which evaluates rows one at
-# a time.
-DEFAULT_SAMPLES = 500
-HBA1C_DIABETES = 6.5
-PREVENT_BIOMARKERS = ("non_hdl", "hdl", "sbp", "egfr", "hba1c")
-# Report an input as out of range once at least this share of samples was clipped.
-# A few clipped tail draws from a wide prior barely move the risk.
-OUT_OF_RANGE_REPORT_SHARE = 0.05
+LAB_PROMPT_DAYS = 90
+SCALE_WEIGHT_MAX_AGE_DAYS = 30
 CM_PER_M = 100.0
+REQUIRED_RISK_PROFILE = ("height_cm", "weight_kg")
 
 
 class QuantilePrior(Protocol):
-    """Anything that returns population quantiles for one profile."""
+    """Population quantile model for one profile."""
 
-    def predict_quantiles(self, record: Profile) -> dict[str, dict[float, float]]:
-        """Population quantiles keyed by target, then tau."""
+    @property
+    def version(self) -> str:
+        """Model version."""
+        ...
+
+    def predict_quantiles(
+        self, record: Mapping[str, str | float | int | None]
+    ) -> dict[str, dict[float, float]]:
+        """Quantiles keyed by target, then tau."""
         ...
 
 
 @dataclass(frozen=True)
-class TwinInputs:
-    """Everything the backend sends for one user.
+class TwinEngine:
+    """Everything loaded once at startup.
 
     Attributes:
-        profile: Feature record with NHANES codes, plus optional height_cm.
-        labs: Lab rows with "date", "biomarker", and "value".
-        wearable_days: End-of-day wearable records.
-        as_of: Last observed day. Defaults to the latest data date.
-        horizon_days: Days to forecast past as_of.
+        prior: Population quantile model.
+        registry: Served stages per analyte.
+        residual_models: Wearable residual models keyed (analyte, mode).
+        prevent_version: Version of the official AHA PREVENT package.
     """
 
-    profile: Profile
-    labs: Sequence[LabRecord] = field(default_factory=tuple)
-    wearable_days: Sequence[WearableRecord] = field(default_factory=tuple)
-    as_of: date | None = None
-    horizon_days: int = DEFAULT_HORIZON_DAYS
-
-
-@dataclass
-class TwinResult:
-    """Personalized biomarker trajectories and PREVENT risk for one user.
-
-    Attributes:
-        as_of: Last observed day.
-        prior_quantiles: Population quantiles keyed by biomarker, then tau.
-        biomarkers: Filter output per biomarker.
-        wearable: Wearable baseline and trailing-window summary.
-        prevent: Risk summaries keyed "population_prior", "current", "forecast".
-        prevent_note: Why PREVENT is empty, if it is.
-        prevent_out_of_range: Per view, the inputs with at least
-            OUT_OF_RANGE_REPORT_SHARE of samples outside AHA's validated range,
-            and that share. Empty when every input was essentially in range.
-    """
-
-    as_of: date
-    prior_quantiles: dict[str, dict[float, float]]
-    biomarkers: dict[str, FilterResult]
-    wearable: WearableSummary
-    prevent: dict[str, RiskSummary] = field(default_factory=dict)
-    prevent_note: str | None = None
-    prevent_out_of_range: dict[str, RangeFlags] = field(default_factory=dict)
+    prior: QuantilePrior
+    registry: ActivationRegistry
+    residual_models: dict[tuple[str, str], ResidualModel] = field(default_factory=dict)
+    prevent_version: str = "unavailable"
 
 
 @dataclass(frozen=True)
-class _PreventContext:
-    """Per-user PREVENT inputs that are fixed across Monte-Carlo samples."""
+class TwinRequest:
+    """One user's state request.
 
-    age: float
-    sex: int
-    height_m: float
-    prior_weight: float
-    latest_weight: float
-    diagnosed_diabetes: bool
-    smoking: float
-    bp_treated: float
-    statin: float
+    Attributes:
+        profile: Profile with NHANES codes, height_cm, and treatment changes.
+        records: Lab and wearable records in the input shape.
+        as_of: Day of the state. Defaults to the latest record day, else today.
+        user_id: Backend user id, used only to key shadow predictions.
+    """
+
+    profile: Profile
+    records: Sequence[RawRecord] = field(default_factory=tuple)
+    as_of: date | None = None
+    user_id: str | None = None
 
 
-def normalize_labs(
-    labs: Sequence[LabRecord], profile: Profile
-) -> dict[str, list[tuple[date, float]]]:
-    """Map lab rows onto filter biomarkers, one measurement per blood draw.
+@dataclass(frozen=True)
+class AnalytePrediction:
+    """The served band of one analyte.
 
-    total_chol becomes non_hdl when HDL is on the same date. scr becomes eGFR
-    (race-free CKD-EPI 2021). A derived value is used only when the same biomarker
-    was not reported directly that day, and at most once per day, so one draw is
-    never counted twice. Other biomarkers are ignored.
+    Attributes:
+        analyte: Canonical analyte name.
+        basis: What the band is based on.
+        basis_label: The same, in words the app can show.
+        p10: 10th percentile.
+        p50: Median.
+        p90: 90th percentile.
+        unit: Canonical unit.
+        as_of: Day the band is for.
+        source_lab_id: Record id of the anchoring lab, when lab-based.
+        lab_measured_at: Day of the anchoring lab, when lab-based.
+        change: Latest vs previous lab against the 95% RCV, with 2+ labs.
+    """
+
+    analyte: str
+    basis: Basis
+    basis_label: str
+    p10: float
+    p50: float
+    p90: float
+    unit: str
+    as_of: date
+    source_lab_id: str | None = None
+    lab_measured_at: date | None = None
+    change: ChangeFlag | None = None
+
+
+@dataclass(frozen=True)
+class ShadowPrediction:
+    """A wearable-adjusted band computed but not served (shadow mode).
+
+    Attributes:
+        analyte: Canonical analyte name.
+        mode: "level" or "change".
+        served: The band actually served.
+        shadow: The wearable-adjusted band.
+        model_version: Residual model version.
+    """
+
+    analyte: str
+    mode: ResidualMode
+    served: Band
+    shadow: Band
+    model_version: str
+
+
+@dataclass(frozen=True)
+class LabPrompt:
+    """When the app should ask for the next lab.
+
+    Attributes:
+        due_on: Day the next lab is due.
+        due: Whether it is due on or before as_of.
+    """
+
+    due_on: date
+    due: bool
+
+
+@dataclass
+class TwinState:
+    """Full twin response for one user.
+
+    Attributes:
+        as_of: Day of the state.
+        predictions: One served band per analyte.
+        risk: PREVENT risk block.
+        rejected: Records that were not used, and why.
+        wearable_windows: Wearable window summaries.
+        shadow: Wearable-adjusted bands that are not served.
+        lab_prompt: When to ask for the next lab.
+        model_versions: Versions of every model and registry used.
+        input_hash: SHA-256 of the inputs and model versions.
+    """
+
+    as_of: date
+    predictions: list[AnalytePrediction]
+    risk: RiskAssessment
+    rejected: list[Rejection]
+    wearable_windows: dict[str, WindowSummary]
+    shadow: list[ShadowPrediction]
+    lab_prompt: LabPrompt
+    model_versions: dict[str, str]
+    input_hash: str
+
+
+def twin_state(engine: TwinEngine, request: TwinRequest) -> TwinState:
+    """Build the personalized state for one user.
 
     Args:
-        labs: Lab rows with "date", "biomarker", and "value".
-        profile: Needs "age" and "sex" to convert creatinine.
+        engine: Models and registry loaded at startup.
+        request: Profile, records, as_of and user id.
 
     Returns:
-        (date, value) pairs per biomarker in BIOMARKERS.
+        Served bands, risk, rejections, wearable windows, shadow bands, lab prompt,
+        model versions and input hash.
     """
-    by_name: dict[str, list[tuple[date, float]]] = {name: [] for name in BIOMARKERS}
-    rows = [
-        (_as_date(row["date"]), str(row["biomarker"]), _as_float(row["value"]))
-        for row in labs
-    ]
-    hdl_by_date = {day: value for day, name, value in rows if name == "hdl"}
-    derived: dict[tuple[str, date], float] = {}
-    for day, name, value in rows:
-        if name in by_name:
-            by_name[name].append((day, value))
-        elif name == "total_chol" and day in hdl_by_date:
-            derived.setdefault(("non_hdl", day), value - hdl_by_date[day])
-        elif name == "scr":
-            derived.setdefault(
-                ("egfr", day),
-                egfr_ckd_epi_2021(
-                    value, _as_float(profile["age"]), int(_as_float(profile["sex"]))
-                ),
-            )
-    reported = {(name, day) for day, name, _ in rows}
-    for (name, day), value in derived.items():
-        if (name, day) not in reported:
-            by_name[name].append((day, value))
-    return by_name
-
-
-def predict_twin(
-    prior: QuantilePrior,
-    inputs: TwinInputs,
-    n_samples: int = DEFAULT_SAMPLES,
-    seed: int = 0,
-) -> TwinResult:
-    """Build the digital twin for one user.
-
-    Args:
-        prior: Population quantile model.
-        inputs: Profile, labs, wearables, as_of, and horizon. Labs and wearables
-            dated after as_of are ignored.
-        n_samples: Monte-Carlo samples per PREVENT view.
-        seed: Random seed for the Monte-Carlo draws.
-
-    Returns:
-        Trajectories per biomarker, wearable summary, and PREVENT views.
-    """
-    as_of, start = _timeline(inputs)
-    end = as_of + timedelta(days=inputs.horizon_days)
-    wearable = summarize(inputs.wearable_days, as_of)
-
-    prior_profile = dict(inputs.profile)
-    if prior_profile.get("weight_kg") is None:
-        prior_profile["weight_kg"] = wearable.baseline.get("weight_kg")
-    prior_quantiles = prior.predict_quantiles(prior_profile)
-
-    deltas = driver_deltas(wearable, start, end)
-    # Like wearables, labs after as_of are not observed yet. Using them would turn
-    # the forecast into a look-ahead.
-    observed_labs = [lab for lab in inputs.labs if _as_date(lab["date"]) <= as_of]
-    lab_values = normalize_labs(observed_labs, inputs.profile)
-    results = {
-        name: run_filter(
-            spec,
-            Prior(*normal_from_quantiles(prior_quantiles[name], spec.transform)),
-            lab_values[name],
-            deltas,
-            as_of,
-        )
-        for name, spec in BIOMARKERS.items()
-        if name in prior_quantiles
-    }
-    twin = TwinResult(as_of, prior_quantiles, results, wearable)
-    context, twin.prevent_note = _prevent_context(twin, prior_profile)
-    if context is not None:
-        for view, on, weight in (
-            ("population_prior", None, context.prior_weight),
-            ("current", as_of, context.latest_weight),
-            ("forecast", end, context.latest_weight),
-        ):
-            risk, flags = _risk_on(twin, context, (on, weight), (n_samples, seed))
-            twin.prevent[view] = risk
-            if flags:
-                twin.prevent_out_of_range[view] = flags
-    return twin
-
-
-def biomarker_samples(
-    twin: TwinResult, on: date | None, n_samples: int, seed: int
-) -> dict[str, FloatArray]:
-    """Draw natural-unit samples per biomarker.
-
-    Args:
-        twin: Output of predict_twin().
-        on: Day to sample from the posterior. None samples the population prior.
-        n_samples: Number of draws per biomarker.
-        seed: Random seed.
-
-    Returns:
-        Samples per biomarker, clipped to each biomarker's plausible range.
-
-    Raises:
-        ValueError: If on is outside the twin's timeline.
-    """
-    rng = np.random.default_rng(seed)
-    samples: dict[str, FloatArray] = {}
-    for name, result in twin.biomarkers.items():
-        spec = BIOMARKERS[name]
-        if on is None:
-            mean, sd = result.prior.mean, result.prior.sd
-        else:
-            rows = result.trajectory.filter(pl.col("date") == on)
-            if rows.is_empty():
-                raise ValueError(f"{on} is outside the twin timeline")
-            mean, sd = rows["mean"].item(), rows["sd"].item()
-        draws = inverse(rng.normal(mean, sd, n_samples), spec.transform)
-        samples[name] = np.clip(draws, *spec.clamp)
-    return samples
-
-
-def _timeline(inputs: TwinInputs) -> tuple[date, date]:
-    """Return (as_of, start). Start is the earliest data date, at most as_of."""
-    data_dates = [_as_date(row["date"]) for row in inputs.labs]
-    data_dates += [_as_date(row["date"]) for row in inputs.wearable_days]
-    as_of = inputs.as_of or (max(data_dates) if data_dates else date.today())
-    return as_of, min([*data_dates, as_of])
-
-
-def _prevent_context(
-    twin: TwinResult, profile: Profile
-) -> tuple[_PreventContext | None, str | None]:
-    """Fixed PREVENT inputs, or a note explaining why PREVENT cannot run."""
-    if not prevent_available():
-        return None, "AHA PREVENT R package is not available"
-    age = _as_float(profile["age"])
-    if not AGE_RANGE[0] <= age <= AGE_RANGE[1]:
-        return None, f"PREVENT is valid for ages {AGE_RANGE[0]}-{AGE_RANGE[1]}"
-    missing = [name for name in PREVENT_BIOMARKERS if name not in twin.biomarkers]
-    if missing:
-        return None, f"Missing biomarker models: {', '.join(missing)}"
-    height = profile.get("height_cm")
-    if height is None:
-        return None, "height_cm is required for BMI"
-    prior_weight = profile.get("weight_kg")
-    latest_weight = _latest_weight(twin.wearable) or prior_weight
-    if prior_weight is None or latest_weight is None:
-        return None, "weight_kg is required for BMI"
-    context = _PreventContext(
-        age=age,
-        sex=int(_as_float(profile["sex"])),
-        height_m=_as_float(height) / CM_PER_M,
-        prior_weight=_as_float(prior_weight),
-        latest_weight=_as_float(latest_weight),
-        diagnosed_diabetes=profile.get("diabetes_dx") == "yes"
-        or profile.get("insulin") == 1
-        or profile.get("diabetes_pills") == 1,
-        smoking=1.0 if profile.get("smoking") == "current" else 0.0,
-        bp_treated=float(profile.get("bp_meds") or 0),
-        statin=float(profile.get("chol_meds") or 0),
+    profile = request.profile
+    age, sex = _number(profile["age"]), int(_number(profile["sex"]))
+    ingested = ingest_records(request.records, age, sex)
+    as_of = request.as_of or _default_as_of(ingested.labs + ingested.wearables)
+    treatments = TreatmentChanges(
+        statin_started_at=_optional_date(profile.get("statin_started_at")),
+        bp_meds_started_at=_optional_date(profile.get("bp_meds_started_at")),
+        pregnant=bool(profile.get("pregnant")),
     )
-    return context, None
+    quantiles = engine.prior.predict_quantiles(_prior_features(profile))
+    windows = feature_windows(ingested.wearables, as_of)
+    predictions: list[AnalytePrediction] = []
+    shadow: list[ShadowPrediction] = []
+    anchors: dict[str, Measurement] = {}
+    for analyte in MODEL_ANALYTES:
+        labs = anchoring_labs(analyte, ingested.labs, as_of, treatments)
+        if labs:
+            anchors[analyte] = labs[-1]
+        prediction, shadow_band = _analyte_prediction(
+            engine,
+            (analyte, as_of),
+            (quantiles[analyte], labs),
+            (windows, ingested.wearables),
+        )
+        predictions.append(prediction)
+        if shadow_band is not None:
+            shadow.append(shadow_band)
+    model_versions = _model_versions(engine)
+    return TwinState(
+        as_of=as_of,
+        predictions=predictions,
+        risk=_risk(profile, predictions, (anchors, ingested.wearables, as_of)),
+        rejected=ingested.rejected,
+        wearable_windows=windows,
+        shadow=shadow,
+        lab_prompt=_lab_prompt(anchors, as_of),
+        model_versions=model_versions,
+        input_hash=input_hash(request, as_of, model_versions),
+    )
 
 
-def _latest_weight(wearable: WearableSummary) -> float | None:
-    """Latest 30-day mean weight from wearables, if any."""
-    if "weight_kg_30d" not in wearable.rolling.columns:
+def _analyte_prediction(
+    engine: TwinEngine,
+    target: tuple[str, date],
+    evidence: tuple[dict[float, float], list[Measurement]],
+    wearable: tuple[dict[str, WindowSummary], list[Measurement]],
+) -> tuple[AnalytePrediction, ShadowPrediction | None]:
+    """Served band of one analyte and, when a residual model applies, its shadow."""
+    analyte, as_of = target
+    population, labs = evidence
+    spec = BIOMARKERS[analyte]
+    latest = labs[-1] if labs and engine.registry.lab_active(analyte) else None
+    if latest is not None:
+        served: Band = lab_band(latest, as_of)
+        basis: Basis = "lab"
+        label = f"Based on your {latest.day:%b} {latest.day.day} lab"
+    else:
+        served = (population[0.10], population[0.50], population[0.90])
+        basis = "population"
+        label = "Typical for your profile"
+
+    shadow = _shadow(engine, (analyte, served), latest, wearable)
+    if shadow is not None and engine.registry.wearable_active(analyte):
+        served = shadow.shadow
+        basis = "lab_wearable" if latest is not None else "population_wearable"
+        label += ", adjusted using your wearable trends"
+
+    low, high = spec.clamp
+    p10, p50, p90 = (float(np.clip(value, low, high)) for value in served)
+    prediction = AnalytePrediction(
+        analyte=analyte,
+        basis=basis,
+        basis_label=label,
+        p10=p10,
+        p50=p50,
+        p90=p90,
+        unit=spec.unit,
+        as_of=as_of,
+        source_lab_id=latest.record_id if latest is not None else None,
+        lab_measured_at=latest.day if latest is not None else None,
+        change=change_flag(labs[-2], labs[-1]) if len(labs) >= 2 else None,
+    )
+    return prediction, shadow
+
+
+def _shadow(
+    engine: TwinEngine,
+    served: tuple[str, Band],
+    latest: Measurement | None,
+    wearable: tuple[dict[str, WindowSummary], list[Measurement]],
+) -> ShadowPrediction | None:
+    """Wearable-adjusted band from a residual model, if one applies."""
+    analyte, band = served
+    windows, wearables = wearable
+    if latest is not None:
+        mode: ResidualMode = "change"
+        days_after = len({item.day for item in wearables if item.day > latest.day})
+        eligible = days_after >= MIN_DAYS_AFTER_LAB
+    else:
+        mode = "level"
+        eligible = any(w.sufficient for w in windows.values() if w.days == 30)
+    model = engine.residual_models.get((analyte, mode))
+    if model is None or not eligible:
         return None
-    latest = wearable.rolling["weight_kg_30d"].drop_nulls()
-    return float(latest[-1]) if latest.len() else None
-
-
-def _risk_on(
-    twin: TwinResult,
-    context: _PreventContext,
-    view: tuple[date | None, float],
-    sampling: tuple[int, int],
-) -> tuple[RiskSummary, RangeFlags]:
-    """Monte-Carlo PREVENT risk for one (date, weight) view, with range flags.
-
-    Inputs outside AHA's validated ranges are clipped so the official package
-    returns a value. The second element reports which inputs were clipped, and for
-    what share of samples, so the response never hides it.
-    """
-    on, weight = view
-    samples = biomarker_samples(twin, on, *sampling)
-    diabetes = context.diagnosed_diabetes | (samples["hba1c"] >= HBA1C_DIABETES)
-    ranged = {
-        "total_chol": samples["non_hdl"] + samples["hdl"],
-        "hdl": samples["hdl"],
-        "sbp": samples["sbp"],
-        "bmi": np.atleast_1d(weight / context.height_m**2),
-    }
-    flags = {
-        name: share
-        for name, values in ranged.items()
-        if (share := share_outside_validated(name, values)) >= OUT_OF_RANGE_REPORT_SHARE
-    }
-    clipped = {name: clip_to_validated(name, values) for name, values in ranged.items()}
-    risk = prevent_risk(
-        PreventInputs(
-            age=context.age,
-            sex=context.sex,
-            total_chol=clipped["total_chol"],
-            hdl=clipped["hdl"],
-            sbp=clipped["sbp"],
-            bmi=clipped["bmi"],
-            egfr=samples["egfr"],
-            diabetes=diabetes.astype(np.float64),
-            smoking=context.smoking,
-            bp_treated=context.bp_treated,
-            statin=context.statin,
-        )
+    features = feature_vector(windows)
+    row = np.array([[features[name] for name in FEATURE_NAMES]])
+    adjusted = model.predict_band(row, np.array([band[1]]))[0]
+    return ShadowPrediction(
+        analyte=analyte,
+        mode=mode,
+        served=band,
+        shadow=(float(adjusted[0]), float(adjusted[1]), float(adjusted[2])),
+        model_version=model.version,
     )
-    return summarize_risk(risk), flags
 
 
-def _as_date(value: object) -> date:
-    """Accept a date or an ISO date string.
+def _risk(
+    profile: Profile,
+    predictions: list[AnalytePrediction],
+    measured: tuple[dict[str, Measurement], list[Measurement], date],
+) -> RiskAssessment:
+    """PREVENT on measured labs where present, personalized p50s otherwise."""
+    anchors, wearables, as_of = measured
+    age = _number(profile["age"])
+    if bool(profile.get("pregnant")):
+        return RiskAssessment(
+            "not_generated", reason="PREVENT is not validated in pregnancy"
+        )
+    if not AGE_RANGE[0] <= age <= AGE_RANGE[1]:
+        return RiskAssessment(
+            "not_generated",
+            reason=f"PREVENT is validated for ages {AGE_RANGE[0]}-{AGE_RANGE[1]}",
+        )
+    missing = [name for name in REQUIRED_RISK_PROFILE if profile.get(name) is None]
+    if missing:
+        return RiskAssessment("not_generated", missing_inputs=missing)
+    if not prevent_available():
+        return RiskAssessment(
+            "not_generated", reason="AHA PREVENT R package is not available"
+        )
 
-    Raises:
-        ValueError: If value is neither.
+    inputs: dict[str, InputEstimate] = {}
+    for prediction in predictions:
+        lab = anchors.get(prediction.analyte)
+        inputs[prediction.analyte] = (
+            InputEstimate(lab.value, "measured")
+            if lab is not None
+            else InputEstimate(
+                prediction.p50, "predicted", (prediction.p10, prediction.p90)
+            )
+        )
+    inputs["bmi"] = _bmi(profile, wearables, as_of)
+    diagnosed = (
+        profile.get("diabetes_dx") == "yes"
+        or profile.get("insulin") == 1
+        or profile.get("diabetes_pills") == 1
+    )
+    inputs["diabetes"] = InputEstimate(1.0 if diagnosed else 0.0, "reported")
+    return assess_risk(
+        RiskProfile(
+            age=age,
+            sex=int(_number(profile["sex"])),
+            smoking=1.0 if profile.get("smoking") == "current" else 0.0,
+            bp_treated=_number(profile.get("bp_meds") or 0),
+            statin=_number(profile.get("chol_meds") or 0),
+        ),
+        inputs,
+    )
+
+
+def _bmi(profile: Profile, wearables: list[Measurement], as_of: date) -> InputEstimate:
+    """BMI from a recent smart-scale weight (measured) or the profile (reported)."""
+    height_m = _number(profile["height_cm"]) / CM_PER_M
+    recent = [
+        item.value
+        for item in wearables
+        if item.analyte == "weight"
+        and 0 <= (as_of - item.day).days < SCALE_WEIGHT_MAX_AGE_DAYS
+    ]
+    if recent:
+        return InputEstimate(float(np.mean(recent)) / height_m**2, "measured")
+    return InputEstimate(_number(profile["weight_kg"]) / height_m**2, "reported")
+
+
+def _lab_prompt(anchors: dict[str, Measurement], as_of: date) -> LabPrompt:
+    """Ask for a lab LAB_PROMPT_DAYS after the latest one, or now if none."""
+    if not anchors:
+        return LabPrompt(due_on=as_of, due=True)
+    latest = max(lab.day for lab in anchors.values())
+    due_on = latest + timedelta(days=LAB_PROMPT_DAYS)
+    return LabPrompt(due_on=due_on, due=due_on <= as_of)
+
+
+def _model_versions(engine: TwinEngine) -> dict[str, str]:
+    """Versions of the prior, PREVENT, the registry, and any residual models."""
+    versions = {
+        "prior": engine.prior.version,
+        "prevent": engine.prevent_version,
+        "activation": engine.registry.version,
+    }
+    for (analyte, mode), model in sorted(engine.residual_models.items()):
+        versions[f"residual_{analyte}_{mode}"] = model.version
+    return versions
+
+
+def input_hash(
+    request: TwinRequest, as_of: date, model_versions: dict[str, str]
+) -> str:
+    """SHA-256 over the canonical inputs and model versions.
+
+    Record order does not matter. The same inputs and models always give the same
+    hash, so a changed hash means new data or a new model.
+
+    Args:
+        request: The request.
+        as_of: Resolved as_of day.
+        model_versions: Versions used.
+
+    Returns:
+        "sha256:<hex digest>".
     """
-    if isinstance(value, date):
+    canonical = orjson.OPT_SORT_KEYS | orjson.OPT_NON_STR_KEYS
+    records = sorted(
+        orjson.dumps(record, option=canonical, default=str)
+        for record in request.records
+    )
+    payload = orjson.dumps(
+        {
+            "profile": dict(request.profile),
+            "records": [orjson.loads(record) for record in records],
+            "as_of": as_of,
+            "model_versions": model_versions,
+        },
+        option=canonical,
+        default=str,
+    )
+    return f"sha256:{hashlib.sha256(payload).hexdigest()}"
+
+
+def _prior_features(profile: Profile) -> dict[str, str | float | int | None]:
+    """Profile fields the prior model reads."""
+    return {
+        key: value
+        for key, value in profile.items()
+        if value is None or isinstance(value, str | float | int)
+    }
+
+
+def _default_as_of(measurements: list[Measurement]) -> date:
+    """Latest measurement day, or today (UTC) without any."""
+    if measurements:
+        return max(item.day for item in measurements)
+    return datetime.now(UTC).date()
+
+
+def _optional_date(value: object) -> date | None:
+    if value is None or isinstance(value, date):
         return value
-    if isinstance(value, str):
-        return date.fromisoformat(value)
-    raise ValueError(f"Not a date: {value!r}")
+    return date.fromisoformat(str(value))
 
 
-def _as_float(value: object) -> float:
+def _number(value: object) -> float:
     """Accept an int, float, or numeric string.
 
     Raises:

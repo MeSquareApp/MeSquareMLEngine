@@ -1,40 +1,52 @@
-"""FastAPI service: population quantile predictions and the cardio digital twin."""
+"""FastAPI service: population predictions and the cardio digital twin state."""
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 
 from config.settings import settings
 from src.components.model_artifact import ArtifactError, QuantileModelBundle
-from src.components.personalization.biomarker_config import BIOMARKERS
-from src.components.prevent import prevent_available
+from src.components.personalization.activation import ActivationError, load_registry
+from src.components.personalization.residual_model import load_residual_models
+from src.components.prevent import package_version, prevent_available
 from src.pipeline.prediction_pipeline import QuantilePredictor
-from src.pipeline.twin_pipeline import TwinInputs, TwinResult, predict_twin
-from src.schemas.prediction import PredictRequest, PredictResponse
-from src.schemas.twin import TwinRequest, TwinResponse
+from src.pipeline.twin_pipeline import TwinEngine, TwinRequest, TwinState, twin_state
+from src.repository.shadow_store import ShadowBatch, ShadowStore
+from src.schemas.prediction import (
+    PatientPrediction,
+    PredictRequest,
+    PredictResponse,
+)
+from src.schemas.twin import TwinStateRequest, TwinStateResponse
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 
-def _load_predictor() -> QuantilePredictor | None:
-    """Load the latest quantile bundle, or None when there is none."""
+def _load_engine() -> TwinEngine | None:
+    """Load the prior, activation registry, residual models and PREVENT version."""
     try:
         bundle = QuantileModelBundle.load_latest(settings.model_dir)
-    except ArtifactError as exc:
-        logger.warning("No quantile model loaded: %s", exc)
+        registry = load_registry()
+    except (ArtifactError, ActivationError) as exc:
+        logger.error("Twin engine not loaded: %s", exc)
         return None
     logger.info(
         "Loaded quantile model version=%s from %s", bundle.version, settings.model_dir
     )
-    return QuantilePredictor(bundle)
+    return TwinEngine(
+        prior=QuantilePredictor(bundle),
+        registry=registry,
+        residual_models=load_residual_models(settings.residual_model_dir),
+        prevent_version=package_version(),
+    )
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Load the quantile model and start embedded R once at startup.
+    """Load models and start embedded R once at startup.
 
     Args:
         app: The FastAPI application.
@@ -42,14 +54,23 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     Yields:
         Control back to FastAPI while the app runs.
     """
-    app.state.predictor = _load_predictor()
     # Embedded R must start on the main thread, before requests run in worker threads.
     if not prevent_available():
-        logger.error("Twin responses will omit PREVENT until R and AHAprevent load")
+        logger.error("Risk responses will be not_generated until R and AHAprevent load")
+    app.state.engine = _load_engine()
+    app.state.shadow_store = ShadowStore.from_settings(settings)
     yield
 
 
 app = FastAPI(title="MeSquareMLEngine", lifespan=lifespan)
+
+
+def _engine(request: Request) -> TwinEngine:
+    """The loaded engine, or 503."""
+    engine: TwinEngine | None = getattr(request.app.state, "engine", None)
+    if engine is None:
+        raise HTTPException(status_code=503, detail="Quantile model is not loaded")
+    return engine
 
 
 @app.get("/")
@@ -60,117 +81,126 @@ async def root() -> dict[str, str]:
 
 @app.get("/health")
 async def health(request: Request) -> dict[str, str]:
-    """Report service health and the loaded model version.
+    """Report service health and the loaded model versions.
 
     Args:
-        request: Gives access to the loaded predictor.
+        request: Gives access to the loaded engine.
 
     Returns:
-        Status and model version.
+        Status, prior version and PREVENT package version.
     """
-    predictor: QuantilePredictor | None = getattr(request.app.state, "predictor", None)
+    engine: TwinEngine | None = getattr(request.app.state, "engine", None)
     return {
         "status": "healthy",
-        "model_version": predictor.version if predictor is not None else "none",
+        "model_version": engine.prior.version if engine is not None else "none",
+        "prevent": engine.prevent_version if engine is not None else "none",
     }
 
 
 @app.post("/v1/predict", response_model=PredictResponse)
-async def predict(body: PredictRequest, request: Request) -> PredictResponse:
-    """Population p10/p50/p90 per biomarker for a batch of patients.
+def predict(body: PredictRequest, request: Request) -> PredictResponse:
+    """Population bands and an estimated PREVENT risk for each patient.
 
     Args:
         body: Patients to score.
-        request: Gives access to the loaded predictor.
+        request: Gives access to the loaded engine.
 
     Returns:
-        Quantile predictions per patient.
+        Bands (basis "population") and risk (risk_basis "estimated") per patient.
 
     Raises:
-        HTTPException: 503 when no quantile model is loaded.
+        HTTPException: 503 when no model is loaded.
     """
-    predictor: QuantilePredictor | None = getattr(request.app.state, "predictor", None)
-    if predictor is None:
-        raise HTTPException(status_code=503, detail="Quantile model is not loaded")
-
-    records = [patient.model_dump() for patient in body.patients]
-    results = predictor.predict(records)
-    return PredictResponse(model_version=predictor.version, results=results)
-
-
-@app.post("/v1/twin/predict", response_model=TwinResponse)
-def twin_predict(body: TwinRequest, request: Request) -> TwinResponse:
-    """Personalized biomarker trajectories and PREVENT risk for one user.
-
-    Args:
-        body: Profile, labs, end-of-day wearables, as_of, and horizon.
-        request: Gives access to the loaded quantile predictor.
-
-    Returns:
-        The twin response.
-
-    Raises:
-        HTTPException: 503 when no quantile model is loaded.
-    """
-    predictor: QuantilePredictor | None = getattr(request.app.state, "predictor", None)
-    if predictor is None:
-        raise HTTPException(status_code=503, detail="Quantile model is not loaded")
-
-    inputs = TwinInputs(
-        profile=body.profile.model_dump(),
-        labs=[lab.model_dump() for lab in body.labs],
-        wearable_days=[day.model_dump() for day in body.wearable_days],
-        as_of=body.as_of,
-        horizon_days=body.horizon_days,
+    engine = _engine(request)
+    states = [
+        twin_state(engine, TwinRequest(profile=patient.model_dump()))
+        for patient in body.patients
+    ]
+    return PredictResponse(
+        model_versions=states[0].model_versions,
+        results=[
+            PatientPrediction.model_validate(
+                {
+                    "predictions": [asdict(item) for item in state.predictions],
+                    "risk": _risk_payload(state),
+                    "input_hash": state.input_hash,
+                }
+            )
+            for state in states
+        ],
     )
-    return to_twin_response(predict_twin(predictor, inputs), body.include_trajectory)
 
 
-TRAJECTORY_COLUMNS = ("date", "q10", "q50", "q90", "basis", "confidence", "forecast")
+@app.post("/v1/twin/state", response_model=TwinStateResponse)
+def twin_state_endpoint(
+    body: TwinStateRequest, request: Request, background: BackgroundTasks
+) -> TwinStateResponse:
+    """Personalized state for one user: bands, risk, and traceability.
 
-
-def to_twin_response(twin: TwinResult, include_trajectory: bool) -> TwinResponse:
-    """Convert a twin result into the API response.
+    With a user_id, wearable-adjusted shadow bands are stored for later evaluation.
+    They are never in the response until activated.
 
     Args:
-        twin: Output of predict_twin().
-        include_trajectory: Whether to include every daily point.
+        body: Profile, every record, as_of and user id.
+        request: Gives access to the loaded engine and shadow store.
+        background: Runs the shadow write after the response.
 
     Returns:
-        The validated response model.
+        The twin state.
+
+    Raises:
+        HTTPException: 503 when no model is loaded.
     """
-    biomarkers = {}
-    for name, result in twin.biomarkers.items():
-        points = result.trajectory.select(TRAJECTORY_COLUMNS).to_dicts()
-        current = next(point for point in points if point["date"] == twin.as_of)
-        prior = twin.prior_quantiles[name]
-        biomarkers[name] = {
-            "unit": BIOMARKERS[name].unit,
-            "prior": {"q10": prior[0.10], "q50": prior[0.50], "q90": prior[0.90]},
-            "current": current,
-            "forecast": points[-1],
-            "change_vs_prior": current["q50"] - prior[0.50],
-            "wearable_effect": result.trajectory["effect"][-1],
-            "innovations": [asdict(innovation) for innovation in result.innovations],
-            "trajectory": points if include_trajectory else None,
-        }
-    wearable = twin.wearable
-    return TwinResponse.model_validate(
+    engine = _engine(request)
+    state = twin_state(
+        engine,
+        TwinRequest(
+            profile=body.profile.model_dump(),
+            records=[record.model_dump() for record in body.records],
+            as_of=body.as_of,
+            user_id=body.user_id,
+        ),
+    )
+    store: ShadowStore | None = getattr(request.app.state, "shadow_store", None)
+    if body.user_id and state.shadow and store is not None:
+        background.add_task(
+            store.write,
+            ShadowBatch(
+                user_id=body.user_id,
+                as_of=state.as_of,
+                prior_version=state.model_versions["prior"],
+                input_hash=state.input_hash,
+                predictions=state.shadow,
+            ),
+        )
+    return TwinStateResponse.model_validate(
         {
-            "as_of": twin.as_of,
-            "biomarkers": biomarkers,
-            "wearable": {
-                "first_date": wearable.first_date,
-                "baseline_end": wearable.baseline_end,
-                "baseline_ready": wearable.baseline_ready,
-                "baseline": wearable.baseline,
-                "latest_delta": wearable.latest_delta,
-                "valid_days_last_30": wearable.valid_days_last_30,
-                "last_valid_date": wearable.last_valid_date,
-                "status": wearable.status,
+            "as_of": state.as_of,
+            "predictions": [asdict(item) for item in state.predictions],
+            "risk": _risk_payload(state),
+            "rejected_records": [
+                {
+                    "id": item.record_id,
+                    "biomarker_abbr": item.biomarker_abbr,
+                    "reason": item.reason,
+                }
+                for item in state.rejected
+            ],
+            "wearable_windows": {
+                key: asdict(window) for key, window in state.wearable_windows.items()
             },
-            "prevent": twin.prevent,
-            "prevent_note": twin.prevent_note,
-            "prevent_out_of_range": twin.prevent_out_of_range,
+            "lab_prompt": asdict(state.lab_prompt),
+            "model_versions": state.model_versions,
+            "input_hash": state.input_hash,
         }
     )
+
+
+def _risk_payload(state: TwinState) -> dict[str, object]:
+    """Risk block as plain data for the response models."""
+    payload = asdict(state.risk)
+    payload["inputs_used"] = {
+        name: {"value": item.value, "source": item.source}
+        for name, item in state.risk.inputs_used.items()
+    }
+    return payload

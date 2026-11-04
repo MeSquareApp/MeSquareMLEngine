@@ -39,7 +39,8 @@ class QuantileModelBundle:
         quantiles: Quantile levels of every target.
         targets: Biomarkers with models.
         training_row_counts: Labeled rows per target.
-        interval_widening: Conformal widening of the p10-p90 interval per target.
+        interval_widening: Conformal widening of the p10-p90 interval per target,
+            then per calibration group (sex x age band) with a pooled "all".
         git_sha: Commit the models were trained from, if known.
         trained_at: ISO timestamp of training.
     """
@@ -52,7 +53,7 @@ class QuantileModelBundle:
     quantiles: tuple[float, ...] = QUANTILES
     targets: tuple[str, ...] = TARGETS
     training_row_counts: dict[str, int] = field(default_factory=dict)
-    interval_widening: dict[str, float] = field(default_factory=dict)
+    interval_widening: dict[str, dict[str, float]] = field(default_factory=dict)
     git_sha: str | None = None
     trained_at: str | None = None
 

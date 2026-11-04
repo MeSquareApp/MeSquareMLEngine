@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     database_url: str | None = None
     nhanes_storage_base_url: str | None = None
     model_dir: Path = Field(default_factory=lambda: _ROOT / "artifacts" / "quantile")
+    residual_model_dir: Path = Field(
+        default_factory=lambda: _ROOT / "artifacts" / "residual"
+    )
 
     model_config = SettingsConfigDict(
         env_file=_ROOT / ".env",

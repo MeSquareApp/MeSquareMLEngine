@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, field_serializer
 
 from src.components.model_config import MAX_PREDICT_BATCH
 from src.constants import Ethnicity, Sex
+from src.schemas.outputs import PredictionOut, RiskOut
 
 SmokingStatus = Literal["never", "former", "current"]
 DiabetesDx = Literal["no", "yes", "borderline"]
@@ -20,6 +21,7 @@ class PatientFeatures(BaseModel):
     sex: Sex
     age: float = Field(ge=20, le=79)
     race_eth: Ethnicity
+    height_cm: float | None = Field(default=None, gt=0)
     weight_kg: float | None = Field(default=None, gt=0)
     waist_cm: float | None = Field(default=None, gt=0)
     smoking: SmokingStatus | None = None
@@ -49,23 +51,16 @@ class PredictRequest(BaseModel):
     patients: list[PatientFeatures] = Field(min_length=1, max_length=MAX_PREDICT_BATCH)
 
 
-class QuantilePrediction(BaseModel):
-    """Population quantiles of one biomarker."""
-
-    p10: float
-    p50: float
-    p90: float
-    unit: str
-
-
 class PatientPrediction(BaseModel):
-    """Quantiles per biomarker for one patient."""
+    """Population bands and an estimated risk for one patient."""
 
-    predictions: dict[str, QuantilePrediction]
+    predictions: list[PredictionOut]
+    risk: RiskOut
+    input_hash: str
 
 
 class PredictResponse(BaseModel):
     """Response of POST /v1/predict."""
 
-    model_version: str
+    model_versions: dict[str, str]
     results: list[PatientPrediction]

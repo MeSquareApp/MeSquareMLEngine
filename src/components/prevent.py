@@ -31,6 +31,9 @@ SEX_MALE = 1
 SEX_FEMALE = 2
 AGE_RANGE = (30, 79)
 OUTCOMES = ("total_cvd", "ascvd", "heart_failure")
+HORIZONS = (10, 30)
+# PREVENT's 30-year equations are validated for ages 30-59 only.
+THIRTY_YEAR_MAX_AGE = 59
 # prevent_base() argument order after sex and age.
 ARGUMENT_ORDER = (
     "tc",
@@ -43,11 +46,15 @@ ARGUMENT_ORDER = (
     "bptreat",
     "statin",
 )
-# prevent_base() output columns for each outcome, 10-year horizon.
+# prevent_base() output column for each (outcome, horizon in years).
 OUTPUT_COLUMNS = {
-    "total_cvd": "prevent_base_10yr_CVD",
-    "ascvd": "prevent_base_10yr_ASCVD",
-    "heart_failure": "prevent_base_10yr_HF",
+    (outcome, horizon): f"prevent_base_{horizon}yr_{suffix}"
+    for outcome, suffix in (
+        ("total_cvd", "CVD"),
+        ("ascvd", "ASCVD"),
+        ("heart_failure", "HF"),
+    )
+    for horizon in HORIZONS
 }
 PERCENT = 100.0
 # Validated ranges from aha_prevent_base.ado. Outside them Stata returns missing.
@@ -57,7 +64,6 @@ VALIDATED_RANGES = {
     "sbp": (90.0, 200.0),
     "bmi": (18.5, 39.99),
 }
-RISK_QUANTILES = (0.10, 0.50, 0.90)
 
 # Embedded R is not thread-safe, and FastAPI runs sync endpoints in a threadpool.
 _R_LOCK = threading.Lock()
@@ -155,6 +161,23 @@ def prevent_available() -> bool:
     return True
 
 
+@cache
+def package_version() -> str:
+    """Installed AHAprevent version, for model_versions.
+
+    Returns:
+        For example "AHAprevent 1.1.0", or "unavailable" when R cannot load it.
+    """
+    if not prevent_available():
+        return "unavailable"
+    robjects = _rpy2()
+    from rpy2.robjects.conversion import localconverter
+
+    with _R_LOCK, localconverter(robjects.default_converter):
+        version = robjects.r(f'as.character(packageVersion("{PACKAGE}"))')[0]
+    return f"{PACKAGE} {version}"
+
+
 def _call_prevent_base(
     sex: FloatArray, age: FloatArray, columns: dict[str, FloatArray]
 ) -> dict[str, FloatArray]:
@@ -166,7 +189,7 @@ def _call_prevent_base(
         columns: Remaining arguments keyed as in ARGUMENT_ORDER.
 
     Returns:
-        10-year risks in percent, keyed by output column name.
+        10- and 30-year risks in percent, keyed by output column name.
 
     Raises:
         PreventUnavailableError: If R or the package is missing.
@@ -193,21 +216,22 @@ def _call_prevent_base(
         }
 
 
-def prevent_risk(inputs: PreventInputs) -> dict[str, FloatArray]:
-    """10-year PREVENT risks from the official package, one value per sample.
+def prevent_risk(inputs: PreventInputs) -> dict[tuple[str, int], FloatArray]:
+    """PREVENT risks from the official package, one value per input row.
 
     Example:
         >>> risk = prevent_risk(PreventInputs(age=50, sex=2, total_chol=200, hdl=45,
         ...     sbp=160, bmi=35, egfr=90, diabetes=1, smoking=0, bp_treated=1,
         ...     statin=0))
-        >>> round(float(risk["total_cvd"][0]), 3)
+        >>> round(float(risk["total_cvd", 10][0]), 3)
         0.147
 
     Args:
         inputs: Patient values. Array fields must share one length or be scalars.
 
     Returns:
-        Risks as fractions keyed by outcome in OUTCOMES.
+        Risks as fractions keyed by (outcome, horizon in years). 30-year values
+        are NaN above THIRTY_YEAR_MAX_AGE.
 
     Raises:
         ValueError: If age is outside 30-79 or sex is not 1 or 2.
@@ -237,9 +261,11 @@ def prevent_risk(inputs: PreventInputs) -> dict[str, FloatArray]:
     sex = np.full(n_samples, 0.0 if inputs.sex == SEX_MALE else 1.0)
     age = np.full(n_samples, float(inputs.age))
     percent = _call_prevent_base(sex, age, columns)
-    return {
-        outcome: percent[column] / PERCENT for outcome, column in OUTPUT_COLUMNS.items()
-    }
+    risks = {key: percent[column] / PERCENT for key, column in OUTPUT_COLUMNS.items()}
+    if inputs.age > THIRTY_YEAR_MAX_AGE:
+        for outcome in OUTCOMES:
+            risks[outcome, 30] = np.full(n_samples, np.nan)
+    return risks
 
 
 def clip_to_validated(name: str, values: npt.ArrayLike) -> FloatArray:
@@ -257,44 +283,3 @@ def clip_to_validated(name: str, values: npt.ArrayLike) -> FloatArray:
     """
     low, high = VALIDATED_RANGES[name]
     return np.clip(np.asarray(values, dtype=np.float64), low, high)
-
-
-def share_outside_validated(name: str, values: npt.ArrayLike) -> float:
-    """Share of samples outside PREVENT's validated range for one input.
-
-    Args:
-        name: Key of VALIDATED_RANGES.
-        values: Samples in the variable's unit, before clipping.
-
-    Returns:
-        Share in [0, 1]. Above zero means clip_to_validated changes those samples.
-
-    Raises:
-        KeyError: If name has no validated range.
-    """
-    low, high = VALIDATED_RANGES[name]
-    samples = np.asarray(values, dtype=np.float64)
-    return float(np.mean((samples < low) | (samples > high)))
-
-
-def summarize_risk(samples: dict[str, FloatArray]) -> dict[str, dict[str, float]]:
-    """Median and 80% interval per outcome from Monte-Carlo risk samples.
-
-    Args:
-        samples: Risk samples keyed by outcome.
-
-    Returns:
-        {"q10", "median", "q90"} per outcome in OUTCOMES.
-
-    Raises:
-        KeyError: If an outcome in OUTCOMES is missing from samples.
-    """
-    summary: dict[str, dict[str, float]] = {}
-    for outcome in OUTCOMES:
-        q10, median, q90 = np.quantile(samples[outcome], RISK_QUANTILES)
-        summary[outcome] = {
-            "median": float(median),
-            "q10": float(q10),
-            "q90": float(q90),
-        }
-    return summary

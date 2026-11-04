@@ -35,7 +35,7 @@ def test_predict_quantiles_matches_batch_prediction(predictor, sample_patient_co
 def test_predict_applies_conformal_widening(predictor, sample_patient_codes):
     # Arrange
     before = predictor.predict_quantiles(sample_patient_codes)["hdl"]
-    predictor.bundle.interval_widening["hdl"] = 5.0
+    predictor.bundle.interval_widening["hdl"] = {"all": 5.0}
 
     # Act
     after = predictor.predict_quantiles(sample_patient_codes)["hdl"]

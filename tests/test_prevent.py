@@ -9,8 +9,6 @@ from src.components.prevent import (
     PreventInputs,
     clip_to_validated,
     prevent_risk,
-    share_outside_validated,
-    summarize_risk,
 )
 from tests.conftest import fake_prevent_base
 
@@ -49,8 +47,12 @@ def test_prevent_risk_converts_percent_to_fraction(mock_prevent):
     risk = prevent_risk(inputs)
 
     # Assert
-    assert risk["total_cvd"][0] == pytest.approx(expected)
-    assert set(risk) == {"total_cvd", "ascvd", "heart_failure"}
+    assert risk["total_cvd", 10][0] == pytest.approx(expected)
+    assert set(risk) == {
+        (outcome, horizon)
+        for outcome in ("total_cvd", "ascvd", "heart_failure")
+        for horizon in (10, 30)
+    }
 
 
 def test_prevent_risk_maps_sex_to_official_codes(monkeypatch):
@@ -80,8 +82,8 @@ def test_prevent_risk_broadcasts_scalars_to_sample_length(mock_prevent):
     risk = prevent_risk(inputs)
 
     # Assert
-    assert risk["total_cvd"].shape == (3,)
-    assert np.all(np.diff(risk["total_cvd"]) > 0)
+    assert risk["total_cvd", 10].shape == (3,)
+    assert np.all(np.diff(risk["total_cvd", 10]) > 0)
 
 
 @pytest.mark.parametrize("overrides", [{"age": 25}, {"age": 80}, {"sex": 3}])
@@ -105,28 +107,14 @@ def test_clip_to_validated():
     np.testing.assert_allclose(clipped, [20.0, 50.0, 100.0])
 
 
-def test_summarize_risk_quantiles():
+def test_thirty_year_risk_only_up_to_age_59(mock_prevent):
     # Arrange
-    samples = {
-        name: np.linspace(0.0, 1.0, 101)
-        for name in ("total_cvd", "ascvd", "heart_failure")
-    }
+    young, old = make_inputs(age=50), make_inputs(age=65)
 
     # Act
-    summary = summarize_risk(samples)
+    young_risk, old_risk = prevent_risk(young), prevent_risk(old)
 
     # Assert
-    assert summary["total_cvd"] == pytest.approx(
-        {"median": 0.5, "q10": 0.1, "q90": 0.9}
-    )
-
-
-def test_share_outside_validated():
-    # Arrange
-    values = np.array([10.0, 50.0, 60.0, 150.0])
-
-    # Act
-    share = share_outside_validated("hdl", values)
-
-    # Assert
-    assert share == 0.5
+    assert not np.isnan(young_risk["total_cvd", 30][0])
+    assert np.isnan(old_risk["total_cvd", 30][0])
+    assert not np.isnan(old_risk["total_cvd", 10][0])

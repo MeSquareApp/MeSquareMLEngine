@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
+from src.components.calibration import calibration_groups, widening_per_row
 from src.components.feature_engineering import (
     FeatureValue,
     FloatArray,
@@ -46,7 +47,7 @@ class QuantilePredictor:
         Returns:
             One {"predictions": {target: {"unit", "p10", "p50", "p90"}}} per patient.
         """
-        matrices = self._quantile_matrices(records)
+        matrices = self.quantile_matrices(records)
         labels = [
             QUANTILE_LABELS.get(tau, f"p{round(tau * 100)}")
             for tau in self.bundle.quantiles
@@ -75,22 +76,30 @@ class QuantilePredictor:
         """
         return {
             target: dict(zip(self.bundle.quantiles, map(float, matrix[0]), strict=True))
-            for target, matrix in self._quantile_matrices([record]).items()
+            for target, matrix in self.quantile_matrices([record]).items()
         }
 
-    def _quantile_matrices(
+    def quantile_matrices(
         self, records: Sequence[PatientRecord]
     ) -> dict[str, FloatArray]:
-        """Calibrated quantile matrix of shape (patients, quantiles) per target."""
+        """Calibrated quantile matrix of shape (patients, quantiles) per target.
+
+        Args:
+            records: Patient features with NHANES codes.
+
+        Returns:
+            One matrix per target, columns in bundle.quantiles order.
+        """
         features = prepare_features(
             records_to_frame(records), self.bundle.category_levels
         )
         quantiles = self.bundle.quantiles
+        groups = calibration_groups(features)
         return {
             target: widen_interval(
                 predict_quantiles(self.bundle.models[target], features, quantiles),
                 quantiles,
-                self.bundle.interval_widening.get(target, 0.0),
+                widening_per_row(groups, self.bundle.interval_widening.get(target, {})),
             )
             for target in self.bundle.targets
         }

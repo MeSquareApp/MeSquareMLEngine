@@ -112,7 +112,7 @@ def test_official_package_matches_published_reference(sex):
 
     # Assert
     for outcome, expected in REFERENCE[sex].items():
-        assert round(float(risk[outcome][0]), 3) == expected
+        assert round(float(risk[outcome, 10][0]), 3) == expected
 
 
 @pytest.mark.skipif(OFFICIAL is None, reason="AHA PREVENT checkout not found")
@@ -161,4 +161,4 @@ def test_official_package_matches_beta_table_on_its_test_data():
     for row, risk in results:
         for outcome, official_name in outcomes.items():
             expected = _beta_risk(row, betas, official_name)
-            assert float(risk[outcome][0]) == pytest.approx(expected, rel=1e-6)
+            assert float(risk[outcome, 10][0]) == pytest.approx(expected, rel=1e-6)

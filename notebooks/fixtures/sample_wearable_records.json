@@ -1,0 +1,2482 @@
+[
+  {
+    "id": "206205c1-79aa-51a7-8141-87c9e7932a56",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 64.4,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-01T07:00:00.000Z"
+  },
+  {
+    "id": "c281d86d-4dde-514f-a966-cf221a71ed56",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 36.9,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-01T07:00:00.000Z"
+  },
+  {
+    "id": "ae126027-c020-5350-b9d0-e55678210f2e",
+    "biomarker_abbr": "vo2_max",
+    "value": 35.6,
+    "unit": "mL/kg/min",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-01T07:00:00.000Z"
+  },
+  {
+    "id": "9d90d24b-be77-5169-b0df-d4905719ed3b",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 64.1,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-02T07:00:00.000Z"
+  },
+  {
+    "id": "a12cb698-669e-5398-8446-501f28c79d10",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 43.4,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-02T07:00:00.000Z"
+  },
+  {
+    "id": "d26860dc-88c0-59c3-b275-741d8a4421fa",
+    "biomarker_abbr": "weight",
+    "value": 195.4,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-05-02T07:00:00.000Z"
+  },
+  {
+    "id": "f5a4d6d3-c4ca-5a38-ab02-1ab5613d8a38",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 64.5,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-03T07:00:00.000Z"
+  },
+  {
+    "id": "a955ad74-7bc5-5e81-a935-bccdb04702e6",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 38.5,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-03T07:00:00.000Z"
+  },
+  {
+    "id": "1a0fce6c-d9ba-5c2a-b912-6c60dde2eb9a",
+    "biomarker_abbr": "weight",
+    "value": 195.9,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-05-03T07:00:00.000Z"
+  },
+  {
+    "id": "760bbfe4-16fd-5bb8-bec7-d525a62c38f4",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 61.9,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-04T07:00:00.000Z"
+  },
+  {
+    "id": "81d9482e-a640-5e62-8a12-d1579794cbb8",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 36.3,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-04T07:00:00.000Z"
+  },
+  {
+    "id": "7e6cea82-0bc6-5bd5-bd86-440a6ffcd6de",
+    "biomarker_abbr": "weight",
+    "value": 194.8,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-05-04T07:00:00.000Z"
+  },
+  {
+    "id": "30a1524d-f566-5e06-a4f6-083cdebfdece",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 63.5,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-05T07:00:00.000Z"
+  },
+  {
+    "id": "07abfb77-c5cd-5e68-bc47-b38a961f5db8",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 33.1,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-05T07:00:00.000Z"
+  },
+  {
+    "id": "88214c12-754e-5c33-b9de-e20357f2ea8c",
+    "biomarker_abbr": "weight",
+    "value": 193.7,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-05-06T07:00:00.000Z"
+  },
+  {
+    "id": "7a2df917-554b-58c3-b965-28c1ee95e0c2",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 63.7,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-07T07:00:00.000Z"
+  },
+  {
+    "id": "ca1f7d93-7315-5708-b818-0c8f0e42c327",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 38.8,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-07T07:00:00.000Z"
+  },
+  {
+    "id": "96ebd97d-ca27-5a20-8fb8-f7e81c68b25b",
+    "biomarker_abbr": "weight",
+    "value": 195.3,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-05-07T07:00:00.000Z"
+  },
+  {
+    "id": "ada3758a-1e93-5a15-9d79-34f7b8e16013",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 62.6,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-08T07:00:00.000Z"
+  },
+  {
+    "id": "47d72cb6-f363-5f54-b864-ad3c356ad1de",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 42.6,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-08T07:00:00.000Z"
+  },
+  {
+    "id": "440b18c8-dee0-574d-8a0b-a3c6a449c28a",
+    "biomarker_abbr": "vo2_max",
+    "value": 35.7,
+    "unit": "mL/kg/min",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-08T07:00:00.000Z"
+  },
+  {
+    "id": "a94c03d3-aceb-5cff-9ae1-be027d219e23",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 62.9,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-09T07:00:00.000Z"
+  },
+  {
+    "id": "60aaef24-1360-5012-9605-3fa209f83945",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 38.0,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-09T07:00:00.000Z"
+  },
+  {
+    "id": "f231e366-bb15-5460-b8ab-8b00a604fe2f",
+    "biomarker_abbr": "weight",
+    "value": 195.6,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-05-09T07:00:00.000Z"
+  },
+  {
+    "id": "e15133d4-ac25-59f4-aa54-fc5ba43efced",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 63.8,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-10T07:00:00.000Z"
+  },
+  {
+    "id": "a1c7956c-5c00-56b3-8d33-f7484d6bafd3",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 43.9,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-10T07:00:00.000Z"
+  },
+  {
+    "id": "980b844e-1cd5-5091-8994-41792ee25585",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 63.9,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-11T07:00:00.000Z"
+  },
+  {
+    "id": "b18a40ec-1229-5036-a7bb-28955f7931aa",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 35.9,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-11T07:00:00.000Z"
+  },
+  {
+    "id": "97a785ae-648e-57d3-818d-480ad62ee694",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 61.9,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-12T07:00:00.000Z"
+  },
+  {
+    "id": "ed4741dd-5ff2-50c7-a8cc-ff81f217b027",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 38.8,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-12T07:00:00.000Z"
+  },
+  {
+    "id": "ab432bda-b137-5090-9f41-c360235f5629",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 64.7,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-13T07:00:00.000Z"
+  },
+  {
+    "id": "86456245-f998-5e56-8db4-feca0ae0cbfb",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 38.3,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-13T07:00:00.000Z"
+  },
+  {
+    "id": "56d33348-72f5-5e1d-851b-cce94ca55dfb",
+    "biomarker_abbr": "weight",
+    "value": 196.4,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-05-13T07:00:00.000Z"
+  },
+  {
+    "id": "8d6a256a-3066-516a-bf57-7e3f54af9ed7",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 63.9,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-14T07:00:00.000Z"
+  },
+  {
+    "id": "0363b7cd-3a01-5d38-8e08-b234d921943c",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 36.8,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-14T07:00:00.000Z"
+  },
+  {
+    "id": "4ce29af6-210b-5197-91eb-ae86db74bca1",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 62.7,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-15T07:00:00.000Z"
+  },
+  {
+    "id": "386c1a9d-6d0f-58c6-8f83-425338cc12de",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 37.9,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-15T07:00:00.000Z"
+  },
+  {
+    "id": "a067ec9d-1291-5a89-9144-4efbcf548380",
+    "biomarker_abbr": "vo2_max",
+    "value": 36.7,
+    "unit": "mL/kg/min",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-15T07:00:00.000Z"
+  },
+  {
+    "id": "fa8eeee2-2239-51f6-b268-f359921a3fde",
+    "biomarker_abbr": "weight",
+    "value": 194.1,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-05-15T07:00:00.000Z"
+  },
+  {
+    "id": "c7421c23-e489-5922-a22c-0dc20afcfa54",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 64.5,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-16T07:00:00.000Z"
+  },
+  {
+    "id": "eb31dc7b-cb61-5699-b199-b1e82886af31",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 30.8,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-16T07:00:00.000Z"
+  },
+  {
+    "id": "f99bf9ba-af17-570d-b392-abd28cf01ec5",
+    "biomarker_abbr": "weight",
+    "value": 195.0,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-05-16T07:00:00.000Z"
+  },
+  {
+    "id": "eebe328e-1ad3-56fd-bc23-cac70679f634",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 64.6,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-17T07:00:00.000Z"
+  },
+  {
+    "id": "ec5289e5-62f0-59e1-9b4d-c7ba44dbc5ed",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 37.5,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-17T07:00:00.000Z"
+  },
+  {
+    "id": "9cca807a-feec-5d92-98ef-66b0a089d020",
+    "biomarker_abbr": "weight",
+    "value": 194.8,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-05-17T07:00:00.000Z"
+  },
+  {
+    "id": "640f76cd-bf9f-5961-8220-e85c8e4ed0ba",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 62.8,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-18T07:00:00.000Z"
+  },
+  {
+    "id": "b7ca19c1-e293-56af-9f7b-c63c138d37a7",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 37.6,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-18T07:00:00.000Z"
+  },
+  {
+    "id": "62a4aa0c-40e9-52e3-ac84-8a23f5304d13",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 63.2,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-19T07:00:00.000Z"
+  },
+  {
+    "id": "ed6acb68-9095-54b5-8277-31b2f25e7485",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 34.4,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-19T07:00:00.000Z"
+  },
+  {
+    "id": "502a1da3-ede9-5961-847d-ced5a59e21fe",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 65.2,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-20T07:00:00.000Z"
+  },
+  {
+    "id": "e6f5c561-4f05-5eaa-a97e-683dd3f18d31",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 41.6,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-20T07:00:00.000Z"
+  },
+  {
+    "id": "22f77ea9-716d-59a7-a135-6bcef79d95f8",
+    "biomarker_abbr": "weight",
+    "value": 195.4,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-05-20T07:00:00.000Z"
+  },
+  {
+    "id": "036b3ae2-209c-5572-be36-eedf93077cb8",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 65.0,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-21T07:00:00.000Z"
+  },
+  {
+    "id": "659aa686-b58e-5dd6-b300-28825ec6615d",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 39.0,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-21T07:00:00.000Z"
+  },
+  {
+    "id": "1791ea6e-c623-52c1-8dab-38158ed92b7c",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 63.9,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-22T07:00:00.000Z"
+  },
+  {
+    "id": "e655afc4-1f3d-55a2-9c81-04b04665762b",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 32.3,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-22T07:00:00.000Z"
+  },
+  {
+    "id": "46e3c999-41e1-5829-967d-5c711620617e",
+    "biomarker_abbr": "vo2_max",
+    "value": 35.4,
+    "unit": "mL/kg/min",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-22T07:00:00.000Z"
+  },
+  {
+    "id": "bc1aad2a-8835-5b78-9abc-ce4d67aabb46",
+    "biomarker_abbr": "weight",
+    "value": 194.0,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-05-22T07:00:00.000Z"
+  },
+  {
+    "id": "98bea355-1c64-5e3e-b01d-d9171c0aa41d",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 66.7,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-23T07:00:00.000Z"
+  },
+  {
+    "id": "359bceaa-1f76-5ee6-a78d-42b20a0a0048",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 35.8,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-23T07:00:00.000Z"
+  },
+  {
+    "id": "748cf0ae-89db-535d-9793-2872e9315d04",
+    "biomarker_abbr": "weight",
+    "value": 194.8,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-05-23T07:00:00.000Z"
+  },
+  {
+    "id": "0688d117-3055-58c6-b65f-2714c5b0f62c",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 63.0,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-24T07:00:00.000Z"
+  },
+  {
+    "id": "6e3daab5-87de-568e-9f6c-df246445f415",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 38.3,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-24T07:00:00.000Z"
+  },
+  {
+    "id": "638fa71b-8068-5b99-a27e-df99f0ce7d4c",
+    "biomarker_abbr": "weight",
+    "value": 195.0,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-05-24T07:00:00.000Z"
+  },
+  {
+    "id": "0d9a62c8-e1d1-563c-a127-2bab1f7c2c72",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 63.2,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-25T07:00:00.000Z"
+  },
+  {
+    "id": "e811cece-2d9e-5ad8-ab2f-76083103fcf9",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 39.3,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-25T07:00:00.000Z"
+  },
+  {
+    "id": "66bdaeb9-94a0-5742-8462-367db2437993",
+    "biomarker_abbr": "weight",
+    "value": 194.8,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-05-25T07:00:00.000Z"
+  },
+  {
+    "id": "ac8c6099-be84-5763-aa23-6590c1ca1c66",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 64.7,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-26T07:00:00.000Z"
+  },
+  {
+    "id": "0fbf8c67-ce98-5123-b22f-aed43d178871",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 40.0,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-26T07:00:00.000Z"
+  },
+  {
+    "id": "2c9b37e0-5098-5a34-ad05-b8118bb8575d",
+    "biomarker_abbr": "weight",
+    "value": 194.0,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-05-26T07:00:00.000Z"
+  },
+  {
+    "id": "c5123f5b-da8b-50ac-b90e-efb95053d7b1",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 60.2,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-27T07:00:00.000Z"
+  },
+  {
+    "id": "c0382c74-cb3e-523c-bc77-85430b656056",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 34.8,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-27T07:00:00.000Z"
+  },
+  {
+    "id": "2424ca67-dbe3-591a-a636-3f4c05a5b6a2",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 64.5,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-28T07:00:00.000Z"
+  },
+  {
+    "id": "a20c7807-a0ca-5228-8f07-9a0c9e37e893",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 32.4,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-28T07:00:00.000Z"
+  },
+  {
+    "id": "0e45d7d6-86c5-5dd6-abf3-61ec62f141c1",
+    "biomarker_abbr": "weight",
+    "value": 193.7,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-05-28T07:00:00.000Z"
+  },
+  {
+    "id": "d3cfd45d-846e-54fa-bdec-7813e9a7b187",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 63.4,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-29T07:00:00.000Z"
+  },
+  {
+    "id": "830eb316-3a8b-523a-96cb-2f92cca0e8c2",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 33.3,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-29T07:00:00.000Z"
+  },
+  {
+    "id": "970765a4-cbaf-5dc0-a97d-be3ca26637a2",
+    "biomarker_abbr": "vo2_max",
+    "value": 37.2,
+    "unit": "mL/kg/min",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-29T07:00:00.000Z"
+  },
+  {
+    "id": "e454e356-bb3d-5ea5-aa0a-f93e4ff3a4a9",
+    "biomarker_abbr": "weight",
+    "value": 194.3,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-05-29T07:00:00.000Z"
+  },
+  {
+    "id": "9663e2ae-5e61-5867-9b26-6469c76c9438",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 62.9,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-30T07:00:00.000Z"
+  },
+  {
+    "id": "9cab037f-9275-59bd-b2c4-8fb128ca853f",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 35.5,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-30T07:00:00.000Z"
+  },
+  {
+    "id": "1f3d9592-b3bd-5acc-ac61-44e21902bd90",
+    "biomarker_abbr": "weight",
+    "value": 193.8,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-05-30T07:00:00.000Z"
+  },
+  {
+    "id": "7c593fe7-f6e5-5575-aa23-002d5344423e",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 61.9,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-31T07:00:00.000Z"
+  },
+  {
+    "id": "e3090313-eb08-5093-ba22-2567243d73f3",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 37.0,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-05-31T07:00:00.000Z"
+  },
+  {
+    "id": "827d4c75-bffa-502a-a57a-424a5a271595",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 62.8,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-01T07:00:00.000Z"
+  },
+  {
+    "id": "0def6b5e-495a-5c9d-a9e3-4a536c26c91a",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 43.4,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-01T07:00:00.000Z"
+  },
+  {
+    "id": "69be487e-f35f-5660-b231-50c1ed921fc4",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 62.5,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-02T07:00:00.000Z"
+  },
+  {
+    "id": "8f16985d-858b-5972-a8cf-fd23011f4f75",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 37.4,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-02T07:00:00.000Z"
+  },
+  {
+    "id": "629766ef-bd0f-5551-8ae3-5853f3c91c4e",
+    "biomarker_abbr": "weight",
+    "value": 195.2,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-06-02T07:00:00.000Z"
+  },
+  {
+    "id": "e05039d6-9cad-55fa-a670-a3814de86858",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 62.6,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-03T07:00:00.000Z"
+  },
+  {
+    "id": "ab7f82f0-99f5-5473-a462-4480fd2b75b3",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 34.1,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-03T07:00:00.000Z"
+  },
+  {
+    "id": "bddc3642-3723-5b07-9d06-fa6248cbdd67",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 62.0,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-04T07:00:00.000Z"
+  },
+  {
+    "id": "1d3ad4b4-aa2e-546d-84fa-f84d8c6131c9",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 35.5,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-04T07:00:00.000Z"
+  },
+  {
+    "id": "12e656cf-e7fe-54d9-8ef4-e87af32167d4",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 65.1,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-05T07:00:00.000Z"
+  },
+  {
+    "id": "687c93db-c77d-5a9e-b216-c583b0f5eafa",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 33.9,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-05T07:00:00.000Z"
+  },
+  {
+    "id": "c022c893-1132-56b2-97f3-73fe25f20ad1",
+    "biomarker_abbr": "vo2_max",
+    "value": 36.6,
+    "unit": "mL/kg/min",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-05T07:00:00.000Z"
+  },
+  {
+    "id": "2caaf1d9-e549-5061-9c5c-6dace90e9f51",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 64.0,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-06T07:00:00.000Z"
+  },
+  {
+    "id": "28f7a56f-1dbb-50cc-bfbd-af5f458774a6",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 39.7,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-06T07:00:00.000Z"
+  },
+  {
+    "id": "f1a3f329-f56a-5d05-a169-0621ace144c5",
+    "biomarker_abbr": "weight",
+    "value": 193.2,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-06-06T07:00:00.000Z"
+  },
+  {
+    "id": "67bda491-2575-509e-b7a1-9f52d3069419",
+    "biomarker_abbr": "weight",
+    "value": 193.7,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-06-07T07:00:00.000Z"
+  },
+  {
+    "id": "dda838e2-890b-5c70-b3ec-c9cbd1c65410",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 61.0,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-08T07:00:00.000Z"
+  },
+  {
+    "id": "86941bc2-56fe-56f7-b72d-8a8cbcedcdca",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 45.2,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-08T07:00:00.000Z"
+  },
+  {
+    "id": "9f21b93c-1509-514b-9530-92f8a644dc5e",
+    "biomarker_abbr": "weight",
+    "value": 194.0,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-06-08T07:00:00.000Z"
+  },
+  {
+    "id": "5d7b3ff0-8919-55ed-bb6e-8642b10c4e4f",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 62.2,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-09T07:00:00.000Z"
+  },
+  {
+    "id": "ef8a830a-719a-561e-a177-e0ed93cedb76",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 37.9,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-09T07:00:00.000Z"
+  },
+  {
+    "id": "568dba94-5a91-595c-8f95-085ea09daef6",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 64.5,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-11T07:00:00.000Z"
+  },
+  {
+    "id": "a0ee70a7-fc1d-53eb-a25b-cc26ba4798b2",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 42.8,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-11T07:00:00.000Z"
+  },
+  {
+    "id": "8141ee19-69bc-56b8-9ece-5ede1c043fbf",
+    "biomarker_abbr": "weight",
+    "value": 193.1,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-06-11T07:00:00.000Z"
+  },
+  {
+    "id": "4ec2feb7-ee23-5cbf-b5e8-5bcaa760c19d",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 64.2,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-12T07:00:00.000Z"
+  },
+  {
+    "id": "6b6ea8a4-636d-5f74-a36f-36c67f0db204",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 44.0,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-12T07:00:00.000Z"
+  },
+  {
+    "id": "70276e83-bf9f-5ae2-90d6-5c8cf708a7c1",
+    "biomarker_abbr": "vo2_max",
+    "value": 36.8,
+    "unit": "mL/kg/min",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-12T07:00:00.000Z"
+  },
+  {
+    "id": "c6f6da0c-d664-512b-a1dc-fd2c19b6e5f9",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 64.0,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-13T07:00:00.000Z"
+  },
+  {
+    "id": "16f11f8f-e902-5a9f-ba6d-203af4ea7258",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 43.8,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-13T07:00:00.000Z"
+  },
+  {
+    "id": "b975bd64-a65a-51de-a8af-07c85e49fe74",
+    "biomarker_abbr": "weight",
+    "value": 194.6,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-06-13T07:00:00.000Z"
+  },
+  {
+    "id": "baccab8c-fd0f-5847-b980-7f17335bf1ff",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 64.0,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-14T07:00:00.000Z"
+  },
+  {
+    "id": "6815ddda-dac9-50c1-b9d3-f9c329140448",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 42.2,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-14T07:00:00.000Z"
+  },
+  {
+    "id": "9ac513d0-54cd-5166-96f9-adec1adc87e7",
+    "biomarker_abbr": "weight",
+    "value": 194.9,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-06-14T07:00:00.000Z"
+  },
+  {
+    "id": "921ac102-0575-5f1a-a2e9-4af11178089c",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 60.9,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-15T07:00:00.000Z"
+  },
+  {
+    "id": "f63461cf-8d98-5102-be3f-11628fbc7b27",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 33.5,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-15T07:00:00.000Z"
+  },
+  {
+    "id": "191dc225-f0c5-52bc-af59-daa7d91c817e",
+    "biomarker_abbr": "weight",
+    "value": 193.9,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-06-16T07:00:00.000Z"
+  },
+  {
+    "id": "fbb039cd-fe4b-5491-9622-d951a48c33ca",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 59.4,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-17T07:00:00.000Z"
+  },
+  {
+    "id": "ba98b61b-ebf6-5887-b175-4357909e78d9",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 41.4,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-17T07:00:00.000Z"
+  },
+  {
+    "id": "7b01712d-7e16-5ee7-aeaf-db82342a571f",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 62.6,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-18T07:00:00.000Z"
+  },
+  {
+    "id": "a0557e08-5dc3-5af7-ba92-f48eafeffdc5",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 37.0,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-18T07:00:00.000Z"
+  },
+  {
+    "id": "6fc7e502-a34d-5225-b469-c4ac4b099411",
+    "biomarker_abbr": "weight",
+    "value": 193.0,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-06-18T07:00:00.000Z"
+  },
+  {
+    "id": "222e912e-7549-5f32-b90b-2161a02ac882",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 60.1,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-19T07:00:00.000Z"
+  },
+  {
+    "id": "89037d6f-280d-5683-a8c2-118956fe472a",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 42.5,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-19T07:00:00.000Z"
+  },
+  {
+    "id": "d3011247-fd8b-532e-b90d-9c5b6ed6258f",
+    "biomarker_abbr": "vo2_max",
+    "value": 36.9,
+    "unit": "mL/kg/min",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-19T07:00:00.000Z"
+  },
+  {
+    "id": "af682e9b-686a-53bb-b71a-425a4937aeea",
+    "biomarker_abbr": "weight",
+    "value": 192.3,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-06-19T07:00:00.000Z"
+  },
+  {
+    "id": "fcfa144a-e9ce-581a-bb04-21f002e928ea",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 61.0,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-20T07:00:00.000Z"
+  },
+  {
+    "id": "2d93ccc6-f536-54ab-be03-5ad891703fe4",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 37.0,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-20T07:00:00.000Z"
+  },
+  {
+    "id": "79d7199e-c652-56af-a10d-e51de6c2f98e",
+    "biomarker_abbr": "weight",
+    "value": 192.4,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-06-20T07:00:00.000Z"
+  },
+  {
+    "id": "dddbc1e6-dbca-5b63-a77b-a17c0463b608",
+    "biomarker_abbr": "weight",
+    "value": 194.6,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-06-21T07:00:00.000Z"
+  },
+  {
+    "id": "d4177b85-20a6-5e03-8485-f544d9000dee",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 63.8,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-22T07:00:00.000Z"
+  },
+  {
+    "id": "c17b3bef-7070-5780-8e82-a1a2905604f6",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 40.2,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-22T07:00:00.000Z"
+  },
+  {
+    "id": "59693d15-c664-55d6-9346-631c5a3936f0",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 61.7,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-23T07:00:00.000Z"
+  },
+  {
+    "id": "dc2c1e68-f157-5489-8612-dcb75694dd93",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 43.6,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-23T07:00:00.000Z"
+  },
+  {
+    "id": "86ad4040-d435-50c2-a4be-21d8087207e9",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 61.9,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-24T07:00:00.000Z"
+  },
+  {
+    "id": "e875619f-da86-5cc0-9c6f-4ac1b5860a37",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 45.3,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-24T07:00:00.000Z"
+  },
+  {
+    "id": "3ca0c263-3e2a-5d7b-bf77-20b742a3c716",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 61.3,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-25T07:00:00.000Z"
+  },
+  {
+    "id": "e2c1d0a6-4193-53e0-96dd-982859601670",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 32.9,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-25T07:00:00.000Z"
+  },
+  {
+    "id": "b2fc48f1-c66e-5059-8863-03bc86f5fc5c",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 61.5,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-26T07:00:00.000Z"
+  },
+  {
+    "id": "ff886831-008e-50fc-be66-783d4cab3016",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 46.1,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-26T07:00:00.000Z"
+  },
+  {
+    "id": "b49b929f-7bf6-5670-ac53-c35a9ae7178c",
+    "biomarker_abbr": "vo2_max",
+    "value": 37.1,
+    "unit": "mL/kg/min",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-26T07:00:00.000Z"
+  },
+  {
+    "id": "e33dcfed-844f-5c53-b351-fb8e538c35db",
+    "biomarker_abbr": "weight",
+    "value": 191.9,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-06-26T07:00:00.000Z"
+  },
+  {
+    "id": "b76b253d-6d47-5d02-ac4b-ffbbd418dfed",
+    "biomarker_abbr": "weight",
+    "value": 192.6,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-06-27T07:00:00.000Z"
+  },
+  {
+    "id": "8a1d5d76-9fdd-558a-aa65-bef01fc69662",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 62.3,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-28T07:00:00.000Z"
+  },
+  {
+    "id": "3f2be315-d10a-53a7-bb55-667feef0e0b1",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 44.1,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-28T07:00:00.000Z"
+  },
+  {
+    "id": "ea0234a0-a5d7-5d09-b57b-dd9fe8ec0a06",
+    "biomarker_abbr": "weight",
+    "value": 192.7,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-06-28T07:00:00.000Z"
+  },
+  {
+    "id": "1c14bb8e-3b49-51e1-85aa-dcf47675f7a1",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 63.0,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-29T07:00:00.000Z"
+  },
+  {
+    "id": "481cf1a3-e52c-595f-8468-3cb4cd160d1a",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 38.2,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-29T07:00:00.000Z"
+  },
+  {
+    "id": "50aa8761-0ba1-5139-853c-a6f25286da9d",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 62.0,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-30T07:00:00.000Z"
+  },
+  {
+    "id": "ffbcda88-f2e6-51bc-a32d-790702bb9667",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 41.0,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-06-30T07:00:00.000Z"
+  },
+  {
+    "id": "9ff16169-606e-5dbb-bda5-03fa11c1609c",
+    "biomarker_abbr": "weight",
+    "value": 193.8,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-06-30T07:00:00.000Z"
+  },
+  {
+    "id": "31caccd6-46c3-5b2d-805d-298e87af43b5",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 61.5,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-01T07:00:00.000Z"
+  },
+  {
+    "id": "5e910511-fdd5-5939-bb8e-adfc92786113",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 44.1,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-01T07:00:00.000Z"
+  },
+  {
+    "id": "570e912d-83d6-5809-b0f9-14b98febc85e",
+    "biomarker_abbr": "weight",
+    "value": 190.2,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-07-01T07:00:00.000Z"
+  },
+  {
+    "id": "614c957e-e56d-5cb0-aceb-37deb8489872",
+    "biomarker_abbr": "weight",
+    "value": 192.3,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-07-02T07:00:00.000Z"
+  },
+  {
+    "id": "56b1eff9-71e8-5112-8d43-bdd8bdbab4a6",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 61.7,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-03T07:00:00.000Z"
+  },
+  {
+    "id": "754d6b52-b358-5794-a26b-bd2b419c186d",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 40.4,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-03T07:00:00.000Z"
+  },
+  {
+    "id": "3ad62ec8-f3c2-5f4e-858b-a43fcb21adb2",
+    "biomarker_abbr": "vo2_max",
+    "value": 37.9,
+    "unit": "mL/kg/min",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-03T07:00:00.000Z"
+  },
+  {
+    "id": "d569a15f-2186-59b8-989e-e7a47e2771ed",
+    "biomarker_abbr": "weight",
+    "value": 192.2,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-07-03T07:00:00.000Z"
+  },
+  {
+    "id": "17d1c1d9-f363-50ff-8954-63b268a4396f",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 61.2,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-04T07:00:00.000Z"
+  },
+  {
+    "id": "f767d3a3-b71a-5771-ac82-ca2a21eddfdb",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 39.6,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-04T07:00:00.000Z"
+  },
+  {
+    "id": "7532100c-60bc-5836-a35e-87a70abe607f",
+    "biomarker_abbr": "weight",
+    "value": 193.4,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-07-04T07:00:00.000Z"
+  },
+  {
+    "id": "e1c85f56-ab27-5320-a171-322f882df41d",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 63.4,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-05T07:00:00.000Z"
+  },
+  {
+    "id": "faf630a2-a64c-561e-bc03-d7b5f37cdbaa",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 43.9,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-05T07:00:00.000Z"
+  },
+  {
+    "id": "eb57d023-78a0-56dd-8bca-4547e937910c",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 61.6,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-06T07:00:00.000Z"
+  },
+  {
+    "id": "e89fdc80-703a-5e39-8a2a-7b186db2bd5f",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 40.5,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-06T07:00:00.000Z"
+  },
+  {
+    "id": "8ecab9f4-493d-5fde-a1fe-3f4d1ccadbe7",
+    "biomarker_abbr": "weight",
+    "value": 193.2,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-07-06T07:00:00.000Z"
+  },
+  {
+    "id": "26270472-546c-56aa-9be5-3b50d8627e28",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 61.9,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-07T07:00:00.000Z"
+  },
+  {
+    "id": "f82c2bfd-5241-520e-a4d0-57db2416c290",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 39.0,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-07T07:00:00.000Z"
+  },
+  {
+    "id": "afaec846-9522-5e1f-a275-ca576df10b06",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 62.7,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-08T07:00:00.000Z"
+  },
+  {
+    "id": "18b8b302-d49a-5ab6-aa67-de354cba42db",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 41.7,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-08T07:00:00.000Z"
+  },
+  {
+    "id": "8553a9e0-1442-568f-b0c4-1845ea4276ee",
+    "biomarker_abbr": "weight",
+    "value": 191.0,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-07-08T07:00:00.000Z"
+  },
+  {
+    "id": "9137dd6d-9f16-5a40-95ce-b72e441079f7",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 63.2,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-09T07:00:00.000Z"
+  },
+  {
+    "id": "694a64b6-ce18-5ead-a738-5749a4be5d31",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 39.9,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-09T07:00:00.000Z"
+  },
+  {
+    "id": "1876b1f6-86b3-5062-b045-d62f8a6fcd0b",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 62.1,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-10T07:00:00.000Z"
+  },
+  {
+    "id": "7c6f5214-e1f9-59aa-b6a0-15a8e61b1bea",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 35.1,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-10T07:00:00.000Z"
+  },
+  {
+    "id": "cfe01d4e-6195-5646-a6c9-e24ee4d78048",
+    "biomarker_abbr": "vo2_max",
+    "value": 37.3,
+    "unit": "mL/kg/min",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-10T07:00:00.000Z"
+  },
+  {
+    "id": "3489d0d8-d064-55f0-b64d-b83629a3133d",
+    "biomarker_abbr": "weight",
+    "value": 192.5,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-07-10T07:00:00.000Z"
+  },
+  {
+    "id": "a20ab79d-5b78-5632-b4e1-125763c7f2bd",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 62.7,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-11T07:00:00.000Z"
+  },
+  {
+    "id": "394697be-a94c-5eb6-ad96-d035415dd0af",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 47.6,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-11T07:00:00.000Z"
+  },
+  {
+    "id": "51f1b29e-e2da-55d2-ac5c-a7cc1ee3f064",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 60.9,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-12T07:00:00.000Z"
+  },
+  {
+    "id": "dace87f8-f6db-569d-95b2-28a73fb59808",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 42.4,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-12T07:00:00.000Z"
+  },
+  {
+    "id": "592569ad-82e4-5a44-a06c-434271d8c95e",
+    "biomarker_abbr": "weight",
+    "value": 190.9,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-07-12T07:00:00.000Z"
+  },
+  {
+    "id": "4ec68296-472e-51f9-b6d7-feb6a2850ade",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 64.8,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-13T07:00:00.000Z"
+  },
+  {
+    "id": "2cf2a599-3250-5844-9b09-baa13cc9fba2",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 40.6,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-13T07:00:00.000Z"
+  },
+  {
+    "id": "47261ac0-ed9f-5b2f-af40-9459be92f02b",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 62.3,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-14T07:00:00.000Z"
+  },
+  {
+    "id": "18ccef7e-6482-55a8-aa3e-b4bc9901bc5d",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 36.7,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-14T07:00:00.000Z"
+  },
+  {
+    "id": "28e627b2-7122-5e06-8b68-aa9649fe1bfc",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 60.4,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-15T07:00:00.000Z"
+  },
+  {
+    "id": "c7d1dcaa-14ea-5921-a3d0-861ec905259a",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 46.1,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-15T07:00:00.000Z"
+  },
+  {
+    "id": "f4ba940c-4014-5914-a4e2-2df23b10d0ce",
+    "biomarker_abbr": "weight",
+    "value": 191.7,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-07-15T07:00:00.000Z"
+  },
+  {
+    "id": "a1790fb6-366e-5b0c-b2de-885f64c58a94",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 64.6,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-16T07:00:00.000Z"
+  },
+  {
+    "id": "ca27ce14-e1e6-5e6a-b00f-ad7a1b618f1b",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 41.0,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-16T07:00:00.000Z"
+  },
+  {
+    "id": "224ab4a3-3548-5adb-b8fa-21e85eb523f5",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 60.7,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-17T07:00:00.000Z"
+  },
+  {
+    "id": "c2184afc-8a1a-5e92-add3-fabb6c353cc7",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 42.0,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-17T07:00:00.000Z"
+  },
+  {
+    "id": "d3682eb5-5a1e-5525-aa5e-116820baf24d",
+    "biomarker_abbr": "vo2_max",
+    "value": 38.3,
+    "unit": "mL/kg/min",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-17T07:00:00.000Z"
+  },
+  {
+    "id": "d9aca3c7-47f1-5eb7-bcca-024db8d83e90",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 60.4,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-18T07:00:00.000Z"
+  },
+  {
+    "id": "72812945-0508-50b0-b0ad-0013a12cdf69",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 39.9,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-18T07:00:00.000Z"
+  },
+  {
+    "id": "f878b02f-b654-5706-a9bd-48d960f3c67b",
+    "biomarker_abbr": "weight",
+    "value": 191.2,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-07-18T07:00:00.000Z"
+  },
+  {
+    "id": "9cce97ba-2daa-5c8c-82ee-52bebc3d2d21",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 62.1,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-19T07:00:00.000Z"
+  },
+  {
+    "id": "e687aa99-6244-5efb-ada3-2b4452043ef5",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 40.8,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-19T07:00:00.000Z"
+  },
+  {
+    "id": "6b45ae8c-eb1e-5fdf-aae9-a0408c6aa915",
+    "biomarker_abbr": "weight",
+    "value": 191.4,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-07-19T07:00:00.000Z"
+  },
+  {
+    "id": "ce966515-6700-5eb1-a77c-52c2c70dda45",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 62.4,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-20T07:00:00.000Z"
+  },
+  {
+    "id": "fa3f31d9-66a5-5c61-9c2c-1c032168fb81",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 49.5,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-20T07:00:00.000Z"
+  },
+  {
+    "id": "efa9d543-9850-5a03-9471-f6cddb655d6f",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 59.0,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-21T07:00:00.000Z"
+  },
+  {
+    "id": "aada1492-2a77-5c01-8881-cee1e514212b",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 43.6,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-21T07:00:00.000Z"
+  },
+  {
+    "id": "f71f8fb6-06ad-57dd-9c57-45580be09d70",
+    "biomarker_abbr": "weight",
+    "value": 190.0,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-07-21T07:00:00.000Z"
+  },
+  {
+    "id": "89e200dd-0623-51f2-b77c-75130f519cd4",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 62.6,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-22T07:00:00.000Z"
+  },
+  {
+    "id": "ce63c905-d3f9-5343-ae58-4063397b355d",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 41.5,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-22T07:00:00.000Z"
+  },
+  {
+    "id": "ca46efab-bc7e-5d32-9aa9-cff32ee8c4e1",
+    "biomarker_abbr": "weight",
+    "value": 190.8,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-07-22T07:00:00.000Z"
+  },
+  {
+    "id": "69433a65-8099-57e6-a817-62c68c385491",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 61.8,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-24T07:00:00.000Z"
+  },
+  {
+    "id": "5fe81aa6-75fb-5b19-bad1-4263d92534f7",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 39.1,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-24T07:00:00.000Z"
+  },
+  {
+    "id": "b936461c-7710-5b99-88c5-0baed5adfc0a",
+    "biomarker_abbr": "vo2_max",
+    "value": 37.1,
+    "unit": "mL/kg/min",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-24T07:00:00.000Z"
+  },
+  {
+    "id": "464a5fa2-68c3-5115-81ab-1f11a72a96ad",
+    "biomarker_abbr": "weight",
+    "value": 190.8,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-07-24T07:00:00.000Z"
+  },
+  {
+    "id": "b965bde7-4d24-5a69-ab7e-15258dfa4ff3",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 61.6,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-25T07:00:00.000Z"
+  },
+  {
+    "id": "9e64327d-39d4-55eb-93b1-8efa4c282ed7",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 37.6,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-25T07:00:00.000Z"
+  },
+  {
+    "id": "b2282c7b-4b88-5220-afb6-c2716be14b1e",
+    "biomarker_abbr": "weight",
+    "value": 191.8,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-07-25T07:00:00.000Z"
+  },
+  {
+    "id": "82d7683f-f72d-57a6-84dd-5abb0d312fab",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 60.7,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-26T07:00:00.000Z"
+  },
+  {
+    "id": "f62ede77-d6f8-5bdc-bc0e-5c115e04ed3e",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 44.4,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-26T07:00:00.000Z"
+  },
+  {
+    "id": "18c8bbed-d467-5742-966e-ae2fc67c3485",
+    "biomarker_abbr": "weight",
+    "value": 190.5,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-07-26T07:00:00.000Z"
+  },
+  {
+    "id": "b5133e8d-9061-5464-8192-0c9c7e1c4ea6",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 59.4,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-27T07:00:00.000Z"
+  },
+  {
+    "id": "ac9f1a51-ff88-55b2-9cc0-d423313329a5",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 36.6,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-27T07:00:00.000Z"
+  },
+  {
+    "id": "febc1110-9672-5b91-864b-65a0d3b48a32",
+    "biomarker_abbr": "weight",
+    "value": 190.6,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-07-27T07:00:00.000Z"
+  },
+  {
+    "id": "b9d880da-8ee5-57b7-bb8a-757810051e3e",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 62.9,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-28T07:00:00.000Z"
+  },
+  {
+    "id": "5777157c-499a-5bac-bd65-d1d8c3f85a2f",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 35.5,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-28T07:00:00.000Z"
+  },
+  {
+    "id": "851d5460-3aba-5d46-97a8-d273bf0fe8b2",
+    "biomarker_abbr": "weight",
+    "value": 190.9,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-07-28T07:00:00.000Z"
+  },
+  {
+    "id": "0d3e8c84-ec5d-56d8-92f3-b1127d8f5f00",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 60.8,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-29T07:00:00.000Z"
+  },
+  {
+    "id": "b2d11635-f44f-5552-8a34-4b299ad7e483",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 46.6,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-29T07:00:00.000Z"
+  },
+  {
+    "id": "b8f2ed6b-83dd-5a8b-91ef-1b75c22caa95",
+    "biomarker_abbr": "weight",
+    "value": 189.7,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-07-29T07:00:00.000Z"
+  },
+  {
+    "id": "300bb40c-ab6c-5ac2-ae48-78f1327cb08d",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 62.5,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-30T07:00:00.000Z"
+  },
+  {
+    "id": "8b9d2d81-38dc-5e2c-ad59-fdf124e664f1",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 44.4,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-30T07:00:00.000Z"
+  },
+  {
+    "id": "b47bda0e-1934-57a7-acba-dcd493a3a3a2",
+    "biomarker_abbr": "weight",
+    "value": 191.7,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-07-30T07:00:00.000Z"
+  },
+  {
+    "id": "be5a4ee3-96a6-58c9-bb94-0824ad2d5529",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 63.3,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-31T07:00:00.000Z"
+  },
+  {
+    "id": "4e9b5ba1-67a0-53fc-80c8-6bb0da65ced0",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 41.0,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-31T07:00:00.000Z"
+  },
+  {
+    "id": "7b8310a3-4e87-51c1-abc8-cac6ff3656df",
+    "biomarker_abbr": "vo2_max",
+    "value": 37.7,
+    "unit": "mL/kg/min",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-07-31T07:00:00.000Z"
+  },
+  {
+    "id": "3844fd31-a429-54db-91be-b2f2beee1b89",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 61.0,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-01T07:00:00.000Z"
+  },
+  {
+    "id": "53ac57c5-a5b5-5c1f-9fea-a04fd7c6de05",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 49.0,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-01T07:00:00.000Z"
+  },
+  {
+    "id": "0006b8c1-a602-5617-b0b5-68d9e32e5c83",
+    "biomarker_abbr": "weight",
+    "value": 190.6,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-08-01T07:00:00.000Z"
+  },
+  {
+    "id": "7069ef0a-dfc3-5b0a-85e1-09a936a03055",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 60.6,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-02T07:00:00.000Z"
+  },
+  {
+    "id": "5861348d-3fd2-5fcf-905b-8586ee901ff6",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 46.6,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-02T07:00:00.000Z"
+  },
+  {
+    "id": "36dd8da3-9460-5c47-924c-eeee8526edda",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 61.7,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-03T07:00:00.000Z"
+  },
+  {
+    "id": "bd2e1328-a086-5c23-a5f8-83053440376a",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 38.5,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-03T07:00:00.000Z"
+  },
+  {
+    "id": "32eee6e9-8c31-5bec-a670-c853e7735711",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 61.1,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-04T07:00:00.000Z"
+  },
+  {
+    "id": "ed4361bf-8b4a-5c3c-8d92-b1b5856467de",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 40.6,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-04T07:00:00.000Z"
+  },
+  {
+    "id": "665e4803-f4ba-578f-b2ab-abfa1a471985",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 59.6,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-05T07:00:00.000Z"
+  },
+  {
+    "id": "53537571-5329-5660-aa24-2d92755b87d6",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 37.6,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-05T07:00:00.000Z"
+  },
+  {
+    "id": "fb418ca0-53dc-58ff-b56a-adc8f2aa894a",
+    "biomarker_abbr": "weight",
+    "value": 190.9,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-08-05T07:00:00.000Z"
+  },
+  {
+    "id": "d2610c20-ba05-52a4-b788-b6d6b98d6e59",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 61.1,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-06T07:00:00.000Z"
+  },
+  {
+    "id": "9ee440cf-a594-56ca-bc65-73ef974bcc33",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 40.3,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-06T07:00:00.000Z"
+  },
+  {
+    "id": "65165a52-aba5-5459-b1fd-389a91d2fc02",
+    "biomarker_abbr": "weight",
+    "value": 190.9,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-08-06T07:00:00.000Z"
+  },
+  {
+    "id": "18fedc71-d872-50fe-bfdc-b8d130fea7f8",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 63.3,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-07T07:00:00.000Z"
+  },
+  {
+    "id": "26e908e5-822a-5280-a131-94de8c2da49c",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 39.8,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-07T07:00:00.000Z"
+  },
+  {
+    "id": "360f77f9-ba4d-564c-a09c-f7a6fce521b5",
+    "biomarker_abbr": "vo2_max",
+    "value": 38.2,
+    "unit": "mL/kg/min",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-07T07:00:00.000Z"
+  },
+  {
+    "id": "04d6b1d7-2236-58ac-89f6-ea8ffb314fd2",
+    "biomarker_abbr": "weight",
+    "value": 189.5,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-08-07T07:00:00.000Z"
+  },
+  {
+    "id": "ce201a15-8071-5b2a-8aa3-6e521a713741",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 60.8,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-08T07:00:00.000Z"
+  },
+  {
+    "id": "9713863c-3bb3-542c-bc97-7e7c06cfc64c",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 45.4,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-08T07:00:00.000Z"
+  },
+  {
+    "id": "b64fd4d8-e6a5-548d-84bf-8efc2f53d7ef",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 60.8,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-09T07:00:00.000Z"
+  },
+  {
+    "id": "f6b9312b-099c-589c-a5dc-3198995f23bd",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 43.2,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-09T07:00:00.000Z"
+  },
+  {
+    "id": "817fd999-9c1d-5db3-b191-69e3fcabd68c",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 60.9,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-10T07:00:00.000Z"
+  },
+  {
+    "id": "b5949a85-775c-512d-be8c-d831a3fe43aa",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 36.2,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-10T07:00:00.000Z"
+  },
+  {
+    "id": "cc02e3fe-361f-565f-8092-831abf18cc74",
+    "biomarker_abbr": "weight",
+    "value": 189.1,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-08-10T07:00:00.000Z"
+  },
+  {
+    "id": "5eff1ccf-7105-5280-a6f7-ff488881fdc5",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 60.9,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-11T07:00:00.000Z"
+  },
+  {
+    "id": "13d604b1-2953-5726-b156-8a685bed20c3",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 47.5,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-11T07:00:00.000Z"
+  },
+  {
+    "id": "d141919f-ac3d-57c9-bc01-6c8d69812224",
+    "biomarker_abbr": "weight",
+    "value": 189.0,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-08-11T07:00:00.000Z"
+  },
+  {
+    "id": "5f0601b2-45ae-580e-9ee4-59f87de0f480",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 59.2,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-12T07:00:00.000Z"
+  },
+  {
+    "id": "0ead6e59-31e6-594e-8fe2-b683646eb4ac",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 44.7,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-12T07:00:00.000Z"
+  },
+  {
+    "id": "f0234efc-2608-5d5a-a64f-a2a4de2bbc86",
+    "biomarker_abbr": "weight",
+    "value": 189.2,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-08-12T07:00:00.000Z"
+  },
+  {
+    "id": "eb4c72d5-e67b-5942-a2f6-3c1f47b5ca6a",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 59.7,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-13T07:00:00.000Z"
+  },
+  {
+    "id": "d1da0c4f-b74d-5a65-8754-0f8568bc4ea7",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 44.9,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-13T07:00:00.000Z"
+  },
+  {
+    "id": "3b5a77b9-cd59-59d0-bde8-751f3c04d78f",
+    "biomarker_abbr": "weight",
+    "value": 188.5,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-08-13T07:00:00.000Z"
+  },
+  {
+    "id": "9ecf9010-da38-589e-a9cd-db9ad9096210",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 58.1,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-14T07:00:00.000Z"
+  },
+  {
+    "id": "850d7494-9132-5997-b377-a704a4a24fff",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 50.7,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-14T07:00:00.000Z"
+  },
+  {
+    "id": "afbaff20-e17d-541e-9222-80d39c8f60a9",
+    "biomarker_abbr": "vo2_max",
+    "value": 37.9,
+    "unit": "mL/kg/min",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-14T07:00:00.000Z"
+  },
+  {
+    "id": "8b356a24-3a9e-584f-8c3a-3f083bb76132",
+    "biomarker_abbr": "weight",
+    "value": 189.7,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-08-14T07:00:00.000Z"
+  },
+  {
+    "id": "9e940368-4ba5-5c73-9084-7b4cc4b07bd1",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 60.9,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-15T07:00:00.000Z"
+  },
+  {
+    "id": "dc7dbffc-6d4a-5929-9328-d3661899a523",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 50.9,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-15T07:00:00.000Z"
+  },
+  {
+    "id": "f8748cc5-8495-53b6-9256-e66e086de251",
+    "biomarker_abbr": "weight",
+    "value": 188.4,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-08-15T07:00:00.000Z"
+  },
+  {
+    "id": "2b876436-7ae5-59a7-b313-6f3bb32d858a",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 58.9,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-16T07:00:00.000Z"
+  },
+  {
+    "id": "1ddd197b-b279-5d30-afb0-35de1cb29f56",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 39.3,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-16T07:00:00.000Z"
+  },
+  {
+    "id": "fcf74feb-51eb-5d58-97db-5860b124b908",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 62.0,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-17T07:00:00.000Z"
+  },
+  {
+    "id": "96f1136d-001c-51d4-a914-55ed065a84e3",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 39.6,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-17T07:00:00.000Z"
+  },
+  {
+    "id": "c7307e35-8537-5b7a-9123-dbf784dbda6d",
+    "biomarker_abbr": "weight",
+    "value": 189.2,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-08-17T07:00:00.000Z"
+  },
+  {
+    "id": "70863d20-6bdd-5dc7-8d82-ef16ab07218c",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 56.5,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-18T07:00:00.000Z"
+  },
+  {
+    "id": "feb501e0-741e-5894-9317-6fc25b355780",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 45.6,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-18T07:00:00.000Z"
+  },
+  {
+    "id": "64c02981-a6b4-5348-87f0-1bfb7b523267",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 59.1,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-19T07:00:00.000Z"
+  },
+  {
+    "id": "292485c6-ccb8-5fb1-aa81-ddf8aff8ee0f",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 42.4,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-19T07:00:00.000Z"
+  },
+  {
+    "id": "7bdee89d-0992-51cd-81e1-9b0bd690f129",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 62.7,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-20T07:00:00.000Z"
+  },
+  {
+    "id": "6f9bc09b-a6db-5998-8ba0-60e25287f950",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 46.8,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-20T07:00:00.000Z"
+  },
+  {
+    "id": "75b1be95-2a4e-58b7-b666-682375745616",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 57.8,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-21T07:00:00.000Z"
+  },
+  {
+    "id": "d57d895b-9369-5238-afb7-384eb4b934d5",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 42.0,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-21T07:00:00.000Z"
+  },
+  {
+    "id": "1c3cd066-3a59-55b8-949e-c6f977fd61f7",
+    "biomarker_abbr": "vo2_max",
+    "value": 38.2,
+    "unit": "mL/kg/min",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-21T07:00:00.000Z"
+  },
+  {
+    "id": "0ae0e9c7-50eb-52a4-a6ea-ab9e8220aa1c",
+    "biomarker_abbr": "weight",
+    "value": 189.2,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-08-21T07:00:00.000Z"
+  },
+  {
+    "id": "0180d50e-e3ec-5175-9fbf-9417c6e9c854",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 60.5,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-22T07:00:00.000Z"
+  },
+  {
+    "id": "ce0d5c2e-024f-520c-b765-c76377d3a602",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 43.5,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-22T07:00:00.000Z"
+  },
+  {
+    "id": "343f9358-7fa9-5881-ab2b-c41350169d71",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 60.4,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-23T07:00:00.000Z"
+  },
+  {
+    "id": "7c07476d-34a1-5ac1-a9c9-b6ea43e2045c",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 40.6,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-23T07:00:00.000Z"
+  },
+  {
+    "id": "f0a12a4f-8cf8-5da0-81a9-0e65fa6e268a",
+    "biomarker_abbr": "weight",
+    "value": 189.1,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-08-24T07:00:00.000Z"
+  },
+  {
+    "id": "f31aea14-18c4-5deb-89bb-36a4c2d26a3f",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 61.4,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-25T07:00:00.000Z"
+  },
+  {
+    "id": "93b83d36-ab8e-5074-a2da-a7ce9b7f9776",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 43.4,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-25T07:00:00.000Z"
+  },
+  {
+    "id": "6a83c3ef-c6b5-50b5-bc82-4722b5d53c33",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 59.4,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-26T07:00:00.000Z"
+  },
+  {
+    "id": "ff4839ed-85bd-5bef-b412-ddc65475faaf",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 40.1,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-26T07:00:00.000Z"
+  },
+  {
+    "id": "1ca1d9e5-4620-5233-a814-b499315e0b27",
+    "biomarker_abbr": "weight",
+    "value": 188.5,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-08-26T07:00:00.000Z"
+  },
+  {
+    "id": "a1970218-dc3f-5b52-aedb-2094d55c0475",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 60.5,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-27T07:00:00.000Z"
+  },
+  {
+    "id": "96cb6053-7a40-54b4-a0fe-715d4276a303",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 38.5,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-27T07:00:00.000Z"
+  },
+  {
+    "id": "546afd1e-d8cd-55a4-96b0-2c6a636621f1",
+    "biomarker_abbr": "resting_heart_rate",
+    "value": 59.5,
+    "unit": "bpm",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-28T07:00:00.000Z"
+  },
+  {
+    "id": "0694fa8b-d977-58a5-8f47-8c3c3bd835dd",
+    "biomarker_abbr": "hrv_rmssd",
+    "value": 42.8,
+    "unit": "ms",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-28T07:00:00.000Z"
+  },
+  {
+    "id": "203c10c9-45a3-5bba-ade3-714e998b42db",
+    "biomarker_abbr": "vo2_max",
+    "value": 37.3,
+    "unit": "mL/kg/min",
+    "measurement_method": "wearable_apple_health",
+    "measured_at": "2026-08-28T07:00:00.000Z"
+  },
+  {
+    "id": "c2acf295-a0d4-5ceb-8a07-d43ea340e703",
+    "biomarker_abbr": "weight",
+    "value": 189.0,
+    "unit": "lb",
+    "measurement_method": "smart_scale_withings",
+    "measured_at": "2026-08-28T07:00:00.000Z"
+  }
+]

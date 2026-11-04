@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import lightgbm as lgb
 import numpy as np
 import numpy.typing as npt
-from sklearn.model_selection import KFold
+from sklearn.model_selection import GroupKFold
 
 from src.components import model_config
 from src.components.model_config import (
@@ -31,17 +31,20 @@ QuantileModels = dict[float, lgb.LGBMRegressor]
 
 @dataclass(frozen=True)
 class TrainingData:
-    """Rows for one target, with NHANES survey weights.
+    """Rows for one target, with NHANES survey weights and design clusters.
 
     Attributes:
         features: Feature matrix.
         values: Target values.
         weights: Survey weight per row. Larger means the row represents more people.
+        clusters: NHANES design cluster (stratum x PSU) per row. Rows of one cluster
+            are never split across training and validation.
     """
 
     features: FloatArray
     values: FloatArray
     weights: FloatArray
+    clusters: FloatArray
 
 
 def select_rows(data: TrainingData, rows: npt.NDArray[np.int_]) -> TrainingData:
@@ -54,7 +57,9 @@ def select_rows(data: TrainingData, rows: npt.NDArray[np.int_]) -> TrainingData:
     Returns:
         The subset.
     """
-    return TrainingData(data.features[rows], data.values[rows], data.weights[rows])
+    return TrainingData(
+        data.features[rows], data.values[rows], data.weights[rows], data.clusters[rows]
+    )
 
 
 @dataclass(frozen=True)
@@ -67,6 +72,9 @@ class CVResult:
         n_estimators_by_tau: Mean early-stopping tree count per quantile.
         pinball_mean_by_tau: Mean validation pinball loss per quantile.
         mean_pinball: Mean validation pinball loss over all quantiles and folds.
+        oof_predictions: Out-of-fold quantile predictions of the best configuration,
+            shape (rows, quantiles), from models with the chosen tree counts.
+        fold_ids: CV fold of every row.
     """
 
     config_name: str
@@ -74,6 +82,8 @@ class CVResult:
     n_estimators_by_tau: dict[float, int]
     pinball_mean_by_tau: dict[float, float]
     mean_pinball: float
+    oof_predictions: FloatArray
+    fold_ids: npt.NDArray[np.int_]
 
 
 def config_name(cfg: Mapping[str, int]) -> str:
@@ -145,7 +155,7 @@ def fit_with_early_stopping(
 
 
 def labeled_rows(
-    features: FloatArray, values: FloatArray, weights: FloatArray
+    features: FloatArray, values: FloatArray, weights: FloatArray, clusters: FloatArray
 ) -> TrainingData:
     """Keep rows with a target value and a positive survey weight.
 
@@ -156,12 +166,13 @@ def labeled_rows(
         features: Feature matrix for every row.
         values: Target values, NaN where missing.
         weights: Survey weights, NaN where missing.
+        clusters: NHANES design cluster per row.
 
     Returns:
         The usable rows.
     """
     keep = ~np.isnan(values) & np.isfinite(weights) & (weights > 0)
-    return TrainingData(features[keep], values[keep], weights[keep])
+    return TrainingData(features[keep], values[keep], weights[keep], clusters[keep])
 
 
 def cross_validate(
@@ -169,9 +180,12 @@ def cross_validate(
     quantiles: tuple[float, ...] = QUANTILES,
     param_grid: list[dict[str, int]] | None = None,
 ) -> CVResult:
-    """Pick the best configuration and per-quantile tree counts with K-fold CV.
+    """Pick the best configuration and per-quantile tree counts with grouped K-fold CV.
 
-    Losses are survey-weighted, so the choice reflects the US population.
+    Folds are grouped by NHANES design cluster, so people from one sampled area are
+    never in both training and validation. Losses are survey-weighted, so the choice
+    reflects the US population. The best configuration is then refit per fold with
+    its chosen tree counts to give honest out-of-fold predictions for calibration.
 
     Args:
         data: Training rows.
@@ -179,14 +193,17 @@ def cross_validate(
         param_grid: Configurations to compare. Defaults to model_config.PARAM_GRID.
 
     Returns:
-        The best configuration and its tree counts.
+        The best configuration, its tree counts and out-of-fold predictions.
     """
     grid = param_grid or model_config.PARAM_GRID
+    split_rows = list(
+        GroupKFold(n_splits=model_config.N_SPLITS).split(
+            data.features, groups=data.clusters
+        )
+    )
     folds = [
         (select_rows(data, train_rows), select_rows(data, valid_rows))
-        for train_rows, valid_rows in KFold(
-            n_splits=model_config.N_SPLITS, shuffle=True, random_state=RANDOM_STATE
-        ).split(data.features)
+        for train_rows, valid_rows in split_rows
     ]
     losses: defaultdict[tuple[int, float], list[float]] = defaultdict(list)
     best_iterations: defaultdict[tuple[int, float], list[int]] = defaultdict(list)
@@ -215,19 +232,28 @@ def cross_validate(
         for index in range(len(grid))
     ]
     best = int(np.argmin(mean_by_cfg))
+    n_estimators_by_tau = {
+        tau: max(MIN_N_ESTIMATORS, round(float(np.mean(best_iterations[best, tau]))))
+        for tau in quantiles
+    }
+    oof = np.empty((len(data.values), len(quantiles)))
+    fold_ids = np.empty(len(data.values), dtype=np.int_)
+    for fold, ((train, validation), (_, valid_rows)) in enumerate(
+        zip(folds, split_rows, strict=True)
+    ):
+        models = fit_final(train, grid[best], n_estimators_by_tau, quantiles)
+        oof[valid_rows] = predict_quantiles(models, validation.features, quantiles)
+        fold_ids[valid_rows] = fold
     return CVResult(
         config_name=config_name(grid[best]),
         cfg=grid[best],
-        n_estimators_by_tau={
-            tau: max(
-                MIN_N_ESTIMATORS, round(float(np.mean(best_iterations[best, tau])))
-            )
-            for tau in quantiles
-        },
+        n_estimators_by_tau=n_estimators_by_tau,
         pinball_mean_by_tau={
             tau: float(np.mean(losses[best, tau])) for tau in quantiles
         },
         mean_pinball=mean_by_cfg[best],
+        oof_predictions=oof,
+        fold_ids=fold_ids,
     )
 
 

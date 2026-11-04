@@ -1,201 +1,294 @@
-from datetime import date, timedelta
+from dataclasses import replace
+from datetime import timedelta
 
 import numpy as np
 import pytest
 
-from src.components.egfr import egfr_ckd_epi_2021
-from src.components.model_config import TARGETS
+from src.components.personalization.residual_model import ResidualModel
 from src.pipeline.twin_pipeline import (
-    LabRecord,
-    TwinInputs,
-    biomarker_samples,
-    normalize_labs,
-    predict_twin,
+    AnalytePrediction,
+    TwinRequest,
+    TwinState,
+    twin_state,
 )
-from tests.conftest import STUB_PRIOR, make_wearables
+from tests.conftest import (
+    START,
+    STUB_PRIOR,
+    full_panel,
+    lab_record,
+    make_registry,
+    wearable_records,
+)
 
-START = date(2026, 1, 1)
+LATER = START + timedelta(days=120)
 
 
-def test_normalize_labs_converts_total_chol_and_creatinine(twin_profile_codes):
+def by_analyte(state: TwinState) -> dict[str, AnalytePrediction]:
+    return {item.analyte: item for item in state.predictions}
+
+
+def test_stage0_population_for_every_analyte(engine, twin_profile_codes, mock_prevent):
     # Arrange
-    labs: list[LabRecord] = [
-        {"date": START, "biomarker": "total_chol", "value": 230.0},
-        {"date": START, "biomarker": "hdl", "value": 38.0},
-        {"date": START, "biomarker": "scr", "value": 1.0},
-        {"date": START + timedelta(days=1), "biomarker": "total_chol", "value": 210.0},
-    ]
+    request = TwinRequest(profile=twin_profile_codes, as_of=START)
 
     # Act
-    result = normalize_labs(labs, twin_profile_codes)
+    state = twin_state(engine, request)
 
     # Assert
-    assert result["non_hdl"] == [(START, 192.0)]
-    assert result["hdl"] == [(START, 38.0)]
-    [(egfr_day, egfr)] = result["egfr"]
-    assert egfr_day == START
-    assert egfr == pytest.approx(egfr_ckd_epi_2021(1.0, 52, 1))
+    hdl = by_analyte(state)["hdl"]
+    assert {item.basis for item in state.predictions} == {"population"}
+    assert hdl.p50 == pytest.approx(STUB_PRIOR["hdl"][0])
+    assert hdl.basis_label == "Typical for your profile"
+    assert state.risk.risk_basis == "estimated"
+    assert state.lab_prompt.due
 
 
-def test_normalize_labs_prefers_direct_values_over_derived(twin_profile_codes):
-    # Arrange: one blood draw reported both directly and as inputs to a conversion.
-    labs: list[LabRecord] = [
-        {"date": START, "biomarker": "total_chol", "value": 230.0},
-        {"date": START, "biomarker": "hdl", "value": 38.0},
-        {"date": START, "biomarker": "non_hdl", "value": 192.0},
-        {"date": START, "biomarker": "scr", "value": 1.0},
-        {"date": START, "biomarker": "egfr", "value": 85.0},
-    ]
-
-    # Act
-    result = normalize_labs(labs, twin_profile_codes)
-
-    # Assert
-    assert result["non_hdl"] == [(START, 192.0)]
-    assert result["egfr"] == [(START, 85.0)]
-
-
-def test_normalize_labs_derives_once_per_day(twin_profile_codes):
-    # Arrange
-    labs: list[LabRecord] = [
-        {"date": START, "biomarker": "hdl", "value": 40.0},
-        {"date": START, "biomarker": "total_chol", "value": 200.0},
-        {"date": START, "biomarker": "total_chol", "value": 200.0},
-    ]
-
-    # Act
-    result = normalize_labs(labs, twin_profile_codes)
-
-    # Assert
-    assert result["non_hdl"] == [(START, 160.0)]
-
-
-def test_twin_runs_on_production_predictor(
-    predictor, sample_patient_codes, mock_prevent
+def test_stage1_lab_band_is_centred_on_the_lab(
+    engine, twin_profile_codes, mock_prevent
 ):
     # Arrange
-    inputs = TwinInputs(
-        profile={**sample_patient_codes, "height_cm": 178.0},
-        labs=[{"date": START, "biomarker": "hdl", "value": 38.0}],
-        wearable_days=make_wearables(START, 90),
-    )
+    request = TwinRequest(profile=twin_profile_codes, records=full_panel(), as_of=START)
 
     # Act
-    twin = predict_twin(predictor, inputs, n_samples=200)
+    state = twin_state(engine, request)
 
     # Assert
-    assert set(twin.biomarkers) == set(TARGETS)
-    assert twin.prevent_note is None
-    assert set(twin.prevent) == {"population_prior", "current", "forecast"}
-    assert twin.biomarkers["hdl"].trajectory["basis"][0] == "measured"
+    predictions = by_analyte(state)
+    hdl = predictions["hdl"]
+    assert hdl.basis == "lab"
+    assert hdl.p50 == 38.0
+    assert hdl.source_lab_id == "HDL-2026-01-01"
+    assert hdl.basis_label == "Based on your Jan 1 lab"
+    assert predictions["non_hdl"].p50 == 192.0
+    assert state.risk.risk_basis == "measured"
+    assert state.risk.inputs_used["hdl"].source == "measured"
+    assert not state.lab_prompt.due
+    assert state.lab_prompt.due_on == START + timedelta(days=90)
 
 
-def test_labs_after_as_of_are_ignored(stub_prior, twin_profile_codes, mock_prevent):
+def test_lab_band_is_narrower_than_population(engine, twin_profile_codes, mock_prevent):
     # Arrange
-    future_lab: LabRecord = {
-        "date": START + timedelta(days=10),
-        "biomarker": "hdl",
-        "value": 30.0,
+    before = TwinRequest(profile=twin_profile_codes, as_of=START)
+    after = TwinRequest(profile=twin_profile_codes, records=full_panel(), as_of=START)
+
+    # Act
+    population = by_analyte(twin_state(engine, before))["hdl"]
+    lab = by_analyte(twin_state(engine, after))["hdl"]
+
+    # Assert
+    assert lab.p90 - lab.p10 < (population.p90 - population.p10) / 2
+
+
+def test_stage2_change_flag_from_repeat_labs(engine, twin_profile_codes, mock_prevent):
+    # Arrange
+    records = [
+        lab_record("HDL", 40.0, "mg/dL"),
+        lab_record("HDL", 55.0, "mg/dL", LATER),
+    ]
+    request = TwinRequest(profile=twin_profile_codes, records=records, as_of=LATER)
+
+    # Act
+    hdl = by_analyte(twin_state(engine, request))["hdl"]
+
+    # Assert
+    assert hdl.p50 == 55.0
+    assert hdl.change is not None
+    assert hdl.change.significant
+    assert hdl.change.previous_lab_id == "HDL-2026-01-01"
+
+
+def test_statin_start_resets_lipids_to_population(
+    engine, twin_profile_codes, mock_prevent
+):
+    # Arrange
+    profile = {
+        **twin_profile_codes,
+        "chol_meds": 1,
+        "statin_started_at": START + timedelta(days=10),
     }
-    inputs = TwinInputs(
-        profile=twin_profile_codes, labs=[future_lab], as_of=START, horizon_days=30
+    request = TwinRequest(profile=profile, records=full_panel(), as_of=LATER)
+
+    # Act
+    predictions = by_analyte(twin_state(engine, request))
+
+    # Assert
+    assert predictions["hdl"].basis == "population"
+    assert predictions["non_hdl"].basis == "population"
+    assert predictions["hba1c"].basis == "lab"
+
+
+def test_pregnancy_returns_population_and_no_risk(
+    engine, twin_profile_codes, mock_prevent
+):
+    # Arrange
+    profile = {**twin_profile_codes, "pregnant": True}
+    request = TwinRequest(profile=profile, records=full_panel(), as_of=START)
+
+    # Act
+    state = twin_state(engine, request)
+
+    # Assert
+    assert {item.basis for item in state.predictions} == {"population"}
+    assert state.risk.status == "not_generated"
+    assert "pregnancy" in (state.risk.reason or "")
+
+
+def test_inactive_lab_stage_serves_population_but_risk_uses_the_lab(
+    engine, twin_profile_codes, mock_prevent
+):
+    # Arrange
+    never_worse = replace(engine, registry=make_registry(lab=False))
+    request = TwinRequest(profile=twin_profile_codes, records=full_panel(), as_of=START)
+
+    # Act
+    state = twin_state(never_worse, request)
+
+    # Assert
+    assert by_analyte(state)["hdl"].basis == "population"
+    assert state.risk.inputs_used["hdl"].source == "measured"
+    assert state.risk.inputs_used["hdl"].value == 38.0
+
+
+def test_missing_height_lists_missing_inputs(engine, twin_profile_codes, mock_prevent):
+    # Arrange
+    profile = {**twin_profile_codes, "height_cm": None}
+
+    # Act
+    state = twin_state(engine, TwinRequest(profile=profile, as_of=START))
+
+    # Assert
+    assert state.risk.status == "not_generated"
+    assert state.risk.missing_inputs == ["height_cm"]
+    assert len(state.predictions) == 5
+
+
+def test_rejected_records_are_reported(engine, twin_profile_codes, mock_prevent):
+    # Arrange
+    records = [*full_panel(), lab_record("HDL", 50.0, "g/L", record_id="bad")]
+
+    # Act
+    state = twin_state(engine, TwinRequest(profile=twin_profile_codes, records=records))
+
+    # Assert
+    assert [item.record_id for item in state.rejected] == ["bad"]
+
+
+class ShiftModel(ResidualModel):
+    """Residual model stub that adds 10% to the anchor."""
+
+    def predict_band(self, features, anchor):
+        return np.column_stack([anchor * 1.0, anchor * 1.1, anchor * 1.2])
+
+
+def wearable_engine(engine, active: bool):
+    model = ShiftModel("hba1c", "change", {}, "residual-test")
+    return replace(
+        engine,
+        registry=make_registry(wearable=active),
+        residual_models={("hba1c", "change"): model},
+    )
+
+
+def test_wearable_adjustment_stays_in_shadow_until_activated(
+    engine, twin_profile_codes, mock_prevent
+):
+    # Arrange: a lab, then 70 days of resting heart rate after it.
+    records = [
+        lab_record("HBA1C", 6.0, "%"),
+        *wearable_records(
+            "resting_heart_rate", [60.0] * 70, "bpm", START + timedelta(days=1)
+        ),
+    ]
+    request = TwinRequest(profile=twin_profile_codes, records=records)
+
+    # Act
+    shadow_state = twin_state(wearable_engine(engine, active=False), request)
+    served_state = twin_state(wearable_engine(engine, active=True), request)
+
+    # Assert
+    shadow_hba1c = by_analyte(shadow_state)["hba1c"]
+    assert shadow_hba1c.basis == "lab"
+    assert [item.analyte for item in shadow_state.shadow] == ["hba1c"]
+    assert shadow_state.shadow[0].shadow[1] == pytest.approx(shadow_hba1c.p50 * 1.1)
+    served_hba1c = by_analyte(served_state)["hba1c"]
+    assert served_hba1c.basis == "lab_wearable"
+    assert "wearable" in served_hba1c.basis_label
+    assert shadow_state.model_versions["residual_hba1c_change"] == "residual-test"
+
+
+def test_change_mode_needs_60_days_after_the_lab(
+    engine, twin_profile_codes, mock_prevent
+):
+    # Arrange
+    records = [
+        lab_record("HBA1C", 6.0, "%"),
+        *wearable_records(
+            "resting_heart_rate", [60.0] * 30, "bpm", START + timedelta(days=1)
+        ),
+    ]
+
+    # Act
+    state = twin_state(
+        wearable_engine(engine, active=False),
+        TwinRequest(profile=twin_profile_codes, records=records),
+    )
+
+    # Assert
+    assert state.shadow == []
+
+
+def test_same_inputs_give_identical_output_and_hash(
+    engine, twin_profile_codes, mock_prevent
+):
+    # Arrange
+    records = full_panel()
+    forward = TwinRequest(profile=twin_profile_codes, records=records, as_of=START)
+    reordered = TwinRequest(
+        profile=twin_profile_codes, records=records[::-1], as_of=START
     )
 
     # Act
-    twin = predict_twin(stub_prior, inputs, n_samples=50)
-
-    # Assert
-    hdl = twin.biomarkers["hdl"]
-    assert hdl.innovations == []
-    assert set(hdl.trajectory["basis"]) == {"prior"}
-
-
-def test_out_of_range_inputs_are_flagged(stub_prior, twin_profile_codes, mock_prevent):
-    # Arrange: very high cholesterol and BMI above PREVENT's validated range.
-    labs: list[LabRecord] = [
-        {"date": START, "biomarker": "total_chol", "value": 380.0},
-        {"date": START, "biomarker": "hdl", "value": 40.0},
-    ]
-    profile = {**twin_profile_codes, "weight_kg": 140.0}
-    inputs = TwinInputs(profile=profile, labs=labs, as_of=START)
-
-    # Act
-    twin = predict_twin(stub_prior, inputs, n_samples=400)
-
-    # Assert
-    current = twin.prevent_out_of_range["current"]
-    assert current["total_chol"] > 0.5
-    assert current["bmi"] == 1.0
-    # A few tail draws from the wide SBP prior stay below the reporting share.
-    assert "sbp" not in current
-
-
-def test_in_range_profile_has_no_flags(stub_prior, twin_profile_codes, mock_prevent):
-    # Arrange
-    labs: list[LabRecord] = [
-        {"date": START, "biomarker": "total_chol", "value": 200.0},
-        {"date": START, "biomarker": "hdl", "value": 50.0},
-        {"date": START, "biomarker": "sbp", "value": 125.0},
-    ]
-    inputs = TwinInputs(profile=twin_profile_codes, labs=labs, as_of=START)
-
-    # Act
-    twin = predict_twin(stub_prior, inputs, n_samples=400)
-
-    # Assert
-    assert "current" not in twin.prevent_out_of_range
-
-
-def test_twin_without_height_explains_missing_prevent(
-    stub_prior, twin_profile_codes, mock_prevent
-):
-    # Arrange
-    inputs = TwinInputs(profile={**twin_profile_codes, "height_cm": None}, as_of=START)
-
-    # Act
-    twin = predict_twin(stub_prior, inputs, n_samples=50)
-
-    # Assert
-    assert twin.prevent == {}
-    assert twin.prevent_note == "height_cm is required for BMI"
-
-
-def test_twin_reports_unavailable_r_package(
-    stub_prior, twin_profile_codes, monkeypatch
-):
-    # Arrange
-    monkeypatch.setattr("src.pipeline.twin_pipeline.prevent_available", lambda: False)
-    inputs = TwinInputs(profile=twin_profile_codes, as_of=START)
-
-    # Act
-    twin = predict_twin(stub_prior, inputs, n_samples=50)
-
-    # Assert
-    assert twin.prevent == {}
-    assert twin.prevent_note == "AHA PREVENT R package is not available"
-
-
-def test_biomarker_samples_from_prior_have_prior_median(
-    stub_prior, twin_profile_codes, mock_prevent
-):
-    # Arrange
-    twin = predict_twin(stub_prior, TwinInputs(profile=twin_profile_codes, as_of=START))
-
-    # Act
-    samples = biomarker_samples(twin, None, n_samples=4000, seed=1)
-
-    # Assert
-    assert np.median(samples["hdl"]) == pytest.approx(STUB_PRIOR["hdl"][0], rel=0.02)
-
-
-def test_biomarker_samples_reject_dates_outside_timeline(
-    stub_prior, twin_profile_codes, mock_prevent
-):
-    # Arrange
-    twin = predict_twin(
-        stub_prior, TwinInputs(profile=twin_profile_codes, as_of=START, horizon_days=0)
+    first, second, shuffled = (
+        twin_state(engine, r) for r in (forward, forward, reordered)
     )
 
-    # Act / Assert
-    with pytest.raises(ValueError):
-        biomarker_samples(twin, START + timedelta(days=5), n_samples=10, seed=0)
+    # Assert
+    assert first == second
+    assert first.input_hash == shuffled.input_hash
+    assert first.predictions == shuffled.predictions
+    assert first.input_hash.startswith("sha256:")
+    changed = twin_state(
+        engine, TwinRequest(profile=twin_profile_codes, records=records, as_of=LATER)
+    )
+    assert changed.input_hash != first.input_hash
+
+
+def test_bands_do_not_jump_without_new_data(engine, twin_profile_codes, mock_prevent):
+    # Arrange: same lab, two consecutive days.
+    day_one = TwinRequest(profile=twin_profile_codes, records=full_panel(), as_of=LATER)
+    day_two = TwinRequest(
+        profile=twin_profile_codes,
+        records=full_panel(),
+        as_of=LATER + timedelta(days=1),
+    )
+
+    # Act
+    first, second = (
+        by_analyte(twin_state(engine, r))["hdl"] for r in (day_one, day_two)
+    )
+
+    # Assert
+    assert second.p50 == first.p50
+    assert 0 <= (second.p90 - first.p90) < 0.05
+
+
+def test_profile_age_outside_prevent_range(engine, twin_profile_codes, mock_prevent):
+    # Arrange
+    profile = {**twin_profile_codes, "age": 25}
+
+    # Act
+    state = twin_state(engine, TwinRequest(profile=profile, as_of=START))
+
+    # Assert
+    assert state.risk.status == "not_generated"
+    assert "30-79" in (state.risk.reason or "")

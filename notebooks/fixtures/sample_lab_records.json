@@ -1,0 +1,66 @@
+[
+  {
+    "id": "7fc19c93-c0a5-5d85-aa0d-8e0535645476",
+    "biomarker_abbr": "TC",
+    "value": 228,
+    "unit": "mg/dL",
+    "measurement_method": "blood_test_lab_report_upload",
+    "measured_at": "2026-05-04T08:15:00.000Z"
+  },
+  {
+    "id": "c71b15fc-9d69-58b6-b13a-6774f696074f",
+    "biomarker_abbr": "HDL",
+    "value": 41,
+    "unit": "mg/dL",
+    "measurement_method": "blood_test_lab_report_upload",
+    "measured_at": "2026-05-04T08:15:00.000Z"
+  },
+  {
+    "id": "12478085-6728-5f7e-bb72-d978dac5032e",
+    "biomarker_abbr": "HBA1C",
+    "value": 5.9,
+    "unit": "%",
+    "measurement_method": "blood_test_lab_report_upload",
+    "measured_at": "2026-05-04T08:15:00.000Z"
+  },
+  {
+    "id": "493306ae-24b2-50e9-9855-30baece5437e",
+    "biomarker_abbr": "CREAT",
+    "value": 1.02,
+    "unit": "mg/dL",
+    "measurement_method": "blood_test_lab_report_upload",
+    "measured_at": "2026-05-04T08:15:00.000Z"
+  },
+  {
+    "id": "0fc4a0e8-3d2b-5a79-b074-6e368a37eb7e",
+    "biomarker_abbr": "SBP",
+    "value": 136,
+    "unit": "mmHg",
+    "measurement_method": "home_bp_protocol",
+    "measured_at": "2026-05-04T08:15:00.000Z"
+  },
+  {
+    "id": "04a1f606-e0b7-5e26-b76a-dc8baf187f75",
+    "biomarker_abbr": "HDL-C",
+    "value": 1.22,
+    "unit": "mmol/L",
+    "measurement_method": "blood_test_lab_report_upload",
+    "measured_at": "2026-08-17T07:40:00.000Z"
+  },
+  {
+    "id": "175309c1-6f5b-5889-a75b-f9e965e31d42",
+    "biomarker_abbr": "Hemoglobin A1c",
+    "value": 43,
+    "unit": "mmol/mol",
+    "measurement_method": "blood_test_lab_report_upload",
+    "measured_at": "2026-08-17T07:40:00.000Z"
+  },
+  {
+    "id": "691d5f69-8e63-5193-b501-78d163402b71",
+    "biomarker_abbr": "HDL",
+    "value": 0.47,
+    "unit": "g/L",
+    "measurement_method": "blood_test_lab_report_upload",
+    "measured_at": "2026-08-17T07:40:00.000Z"
+  }
+]

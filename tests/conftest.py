@@ -19,7 +19,13 @@ from src.components.model_config import (
     CategoryLevels,
 )
 from src.components.model_trainer import TrainingData, fit_final
+from src.components.personalization.activation import (
+    WEARABLE_ACTIVATION_ORDER,
+    ActivationRegistry,
+    StageDecision,
+)
 from src.pipeline.prediction_pipeline import QuantilePredictor
+from src.pipeline.twin_pipeline import TwinEngine
 
 TINY_CONFIG = {"num_leaves": 7, "min_child_samples": 5}
 TINY_TREES = 20
@@ -67,6 +73,8 @@ def synthetic_frame(n_rows: int = 120, seed: int = 0) -> pl.DataFrame:
             "sbp": 105 + 0.4 * age + 0.1 * weight + rng.normal(0, 8, size=n_rows),
             "wt_lab": rng.uniform(1_000, 50_000, size=n_rows),
             "wt_mec": rng.uniform(1_000, 50_000, size=n_rows),
+            "sdmvstra": rng.integers(1, 9, size=n_rows).astype(float),
+            "sdmvpsu": rng.integers(1, 3, size=n_rows).astype(float),
         }
     )
 
@@ -85,7 +93,10 @@ def tiny_bundle(tmp_path: Path, category_levels: CategoryLevels) -> QuantileMode
     models = {
         target: fit_final(
             TrainingData(
-                features, frame[target].to_numpy(), frame["wt_lab"].to_numpy()
+                features,
+                frame[target].to_numpy(),
+                frame["wt_lab"].to_numpy(),
+                frame["sdmvstra"].to_numpy(),
             ),
             TINY_CONFIG,
             n_estimators,
@@ -136,23 +147,25 @@ def sample_patient_codes(sample_patient: dict) -> dict:
     return {**sample_patient, "sex": 1.0, "race_eth": 3.0}
 
 
-# Population medians and SDs used by the stub prior in digital twin tests.
+# Population medians and log-scale SDs used by the stub prior in twin tests.
 STUB_PRIOR = {
-    "non_hdl": (150.0, 40.0),
-    "hdl": (50.0, 14.0),
-    "hba1c": (5.5, 0.6),
-    "egfr": (90.0, 18.0),
-    "sbp": (125.0, 16.0),
+    "non_hdl": (150.0, 0.25),
+    "hdl": (50.0, 0.25),
+    "hba1c": (5.5, 0.1),
+    "egfr": (90.0, 0.2),
+    "sbp": (125.0, 0.12),
 }
 Z_SCORES = {0.10: -1.2816, 0.50: 0.0, 0.90: 1.2816}
-STEP_INCREASE = 4000.0
-WEIGHT_LOSS_PER_DAY = 0.04
+START = date(2026, 1, 1)
 
 
 class StubPrior:
-    """Fixed normal quantiles, so twin assertions do not depend on a trained model."""
+    """Fixed log-normal quantiles, so twin tests do not depend on a trained model."""
 
-    version = "stub"
+    @property
+    def version(self) -> str:
+        """Stub version."""
+        return "stub-prior"
 
     def predict_quantiles(
         self, record: Mapping[str, str | float | int | None]
@@ -166,7 +179,7 @@ class StubPrior:
             Quantiles keyed by target, then tau.
         """
         return {
-            target: {tau: median + z * sd for tau, z in Z_SCORES.items()}
+            target: {tau: median * float(np.exp(z * sd)) for tau, z in Z_SCORES.items()}
             for target, (median, sd) in STUB_PRIOR.items()
         }
 
@@ -177,9 +190,9 @@ def fake_prevent_base(
     """Stand-in for the R call: percent risk that rises with SBP and cholesterol."""
     base = columns["sbp"] / 20.0 + columns["tc"] / 100.0 + sex
     return {
-        "prevent_base_10yr_CVD": base,
-        "prevent_base_10yr_ASCVD": base / 2.0,
-        "prevent_base_10yr_HF": base / 4.0,
+        f"prevent_base_{horizon}yr_{suffix}": base * factor * (horizon / 10)
+        for suffix, factor in (("CVD", 1.0), ("ASCVD", 0.5), ("HF", 0.25))
+        for horizon in (10, 30)
     }
 
 
@@ -195,9 +208,28 @@ def mock_prevent(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("src.pipeline.twin_pipeline.prevent_available", lambda: True)
 
 
+def make_registry(lab: bool = True, wearable: bool = False) -> ActivationRegistry:
+    """Registry with the same decision for every analyte (wearables never for eGFR)."""
+    return ActivationRegistry(
+        version="test-registry",
+        lab={name: StageDecision(lab) for name in STUB_PRIOR},
+        wearable={
+            name: StageDecision(wearable and name in WEARABLE_ACTIVATION_ORDER)
+            for name in STUB_PRIOR
+        },
+    )
+
+
+@pytest.fixture
+def engine(stub_prior: StubPrior) -> TwinEngine:
+    return TwinEngine(
+        prior=stub_prior, registry=make_registry(), prevent_version="test"
+    )
+
+
 @pytest.fixture
 def twin_profile() -> dict:
-    """API request shape for /v1/twin/predict."""
+    """API request shape for /v1/twin/state."""
     return {
         "sex": "Male",
         "age": 52,
@@ -217,34 +249,46 @@ def twin_profile_codes(twin_profile: dict) -> dict:
     return {**twin_profile, "sex": 1, "race_eth": 3}
 
 
-def make_wearables(
-    start: date, n_days: int, change_day: int | None = 45, seed: int = 0
-) -> list[dict[str, date | float | None]]:
-    """Daily wearables. From change_day: more steps and slowly falling weight.
+def lab_record(
+    abbr: str, value: float, unit: str, day: date = START, record_id: str | None = None
+) -> dict[str, object]:
+    """One lab record in the input shape."""
+    return {
+        "id": record_id or f"{abbr}-{day.isoformat()}",
+        "biomarker_abbr": abbr,
+        "value": value,
+        "unit": unit,
+        "measurement_method": "blood_test_lab_report_upload",
+        "measured_at": f"{day.isoformat()}T08:00:00.000Z",
+    }
 
-    Args:
-        start: First day.
-        n_days: Number of days.
-        change_day: Day the behaviour change starts. None for no change.
-        seed: Random seed for day-to-day noise.
 
-    Returns:
-        One record per day.
-    """
-    rng = np.random.default_rng(seed)
-    records: list[dict[str, date | float | None]] = []
-    for day_index in range(n_days):
-        active = change_day is not None and day_index >= change_day
-        days_active = day_index - change_day if active and change_day is not None else 0
-        records.append(
-            {
-                "date": start + timedelta(days=day_index),
-                "steps": 5000 + (STEP_INCREASE if active else 0) + rng.normal(0, 500),
-                "resting_hr": 70 + rng.normal(0, 1),
-                "sleep_h": 7 + rng.normal(0, 0.3),
-                "weight_kg": 92
-                - WEIGHT_LOSS_PER_DAY * days_active
-                + rng.normal(0, 0.2),
-            }
-        )
-    return records
+def full_panel(day: date = START) -> list[dict[str, object]]:
+    """A complete panel: lipids, HbA1c, creatinine and a home BP reading."""
+    bp = lab_record("SBP", 138.0, "mmHg", day)
+    bp["measurement_method"] = "home_bp_protocol"
+    return [
+        lab_record("TC", 230.0, "mg/dL", day),
+        lab_record("HDL", 38.0, "mg/dL", day),
+        lab_record("HBA1C", 5.9, "%", day),
+        lab_record("CREAT", 1.0, "mg/dL", day),
+        bp,
+    ]
+
+
+def wearable_records(
+    metric: str, values: list[float], unit: str, start: date = START
+) -> list[dict[str, object]]:
+    """Daily wearable summaries, one per day from start. NaN skips a day."""
+    return [
+        {
+            "id": f"{metric}-{offset}",
+            "biomarker_abbr": metric,
+            "value": value,
+            "unit": unit,
+            "measurement_method": "wearable_apple_health",
+            "measured_at": f"{(start + timedelta(days=offset)).isoformat()}T07:00:00Z",
+        }
+        for offset, value in enumerate(values)
+        if not np.isnan(value)
+    ]
