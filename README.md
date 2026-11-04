@@ -126,6 +126,8 @@ Rules:
 
 The app should label any risk whose `risk_basis` is not `measured` as an estimate, for example "Estimated — upload a lab for a measured score".
 
+**When to call it.** The backend recomputes the state on each update trigger: a new lab, a profile change (weight, smoking, medication, diagnosis), a completed home BP protocol, or a new active model version. A changed `model_versions` means the last one. It also calls nightly after the Open Wearables sync, with `user_id`, so shadow predictions accumulate. An unchanged `input_hash` means nothing changed, so the response is identical.
+
 ### AHA PREVENT (R) setup
 
 PREVENT results require R and the official package from the AHA-DS-Analytics/PREVENT repo. If either is missing, the API still answers, with `risk.status: "not_generated"` and a `reason`.

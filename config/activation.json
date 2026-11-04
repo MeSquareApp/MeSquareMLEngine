@@ -1,11 +1,11 @@
 {
-  "version": "activation-20261103T2208Z",
+  "version": "activation-20261104T1154Z",
   "lab": {
     "non_hdl": {
       "active": true,
       "evidence": {
         "method": "simulation",
-        "prior": "20261103T2208Z",
+        "prior": "20261104T1154Z",
         "rows": 1021.0,
         "lab_median_abs_error": 9.2690995223263,
         "population_median_abs_error": 19.709573631053573,
@@ -26,7 +26,7 @@
       "active": true,
       "evidence": {
         "method": "simulation",
-        "prior": "20261103T2208Z",
+        "prior": "20261104T1154Z",
         "rows": 1021.0,
         "lab_median_abs_error": 3.37833334289396,
         "population_median_abs_error": 6.878442036435828,
@@ -47,7 +47,7 @@
       "active": true,
       "evidence": {
         "method": "simulation",
-        "prior": "20261103T2208Z",
+        "prior": "20261104T1154Z",
         "rows": 1082.0,
         "lab_median_abs_error": 0.18768945407995918,
         "population_median_abs_error": 0.2647130083432465,
@@ -68,7 +68,7 @@
       "active": true,
       "evidence": {
         "method": "simulation",
-        "prior": "20261103T2208Z",
+        "prior": "20261104T1154Z",
         "rows": 1014.0,
         "lab_median_abs_error": 5.270420164826177,
         "population_median_abs_error": 10.07307528484553,
@@ -89,7 +89,7 @@
       "active": true,
       "evidence": {
         "method": "simulation",
-        "prior": "20261103T2208Z",
+        "prior": "20261104T1154Z",
         "rows": 1118.0,
         "lab_median_abs_error": 7.156323963592001,
         "population_median_abs_error": 9.716992830216554,
