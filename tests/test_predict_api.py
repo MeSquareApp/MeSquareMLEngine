@@ -43,7 +43,7 @@ def test_predict_returns_population_bands_and_estimated_risk(client, sample_pati
     assert response.status_code == 200
     body = response.json()
     result = body["results"][0]
-    assert {p["analyte"] for p in result["predictions"]} == set(TARGETS)
+    assert {p["biomarker"] for p in result["predictions"]} == set(TARGETS)
     assert {p["basis"] for p in result["predictions"]} == {"population"}
     assert all(p["p10"] <= p["p50"] <= p["p90"] for p in result["predictions"])
     assert result["risk"]["status"] == "generated"

@@ -9,7 +9,7 @@ from src.pipeline.twin_pipeline import TwinEngine
 from tests.conftest import START, full_panel, lab_record, wearable_records
 
 REQUIRED_PREDICTION_FIELDS = {
-    "analyte",
+    "biomarker",
     "basis",
     "p10",
     "p50",
@@ -50,8 +50,8 @@ def test_state_response_has_every_required_field(client, twin_profile):
     # Assert
     assert response.status_code == 200
     data = response.json()
-    hdl = next(p for p in data["predictions"] if p["analyte"] == "hdl")
-    non_hdl = next(p for p in data["predictions"] if p["analyte"] == "non_hdl")
+    hdl = next(p for p in data["predictions"] if p["biomarker"] == "hdl")
+    non_hdl = next(p for p in data["predictions"] if p["biomarker"] == "non_hdl")
     assert REQUIRED_PREDICTION_FIELDS <= set(hdl)
     assert (hdl["basis"], hdl["source_lab_id"], hdl["p50"]) == (
         "lab",
@@ -114,8 +114,8 @@ def test_shadow_predictions_are_stored_not_returned(
     batches = app.state.shadow_store.batches
     assert len(batches) == 1
     assert batches[0].user_id == "user-1"
-    assert [item.analyte for item in batches[0].predictions] == ["hba1c"]
-    hba1c = next(p for p in data["predictions"] if p["analyte"] == "hba1c")
+    assert [item.biomarker for item in batches[0].predictions] == ["hba1c"]
+    hba1c = next(p for p in data["predictions"] if p["biomarker"] == "hba1c")
     assert hba1c["basis"] == "lab"
     assert "shadow" not in data
 

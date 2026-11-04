@@ -6,7 +6,7 @@ import pytest
 
 from src.components.personalization.residual_model import ResidualModel
 from src.pipeline.twin_pipeline import (
-    AnalytePrediction,
+    BiomarkerPrediction,
     TwinRequest,
     TwinState,
     twin_state,
@@ -23,11 +23,11 @@ from tests.conftest import (
 LATER = START + timedelta(days=120)
 
 
-def by_analyte(state: TwinState) -> dict[str, AnalytePrediction]:
-    return {item.analyte: item for item in state.predictions}
+def by_biomarker(state: TwinState) -> dict[str, BiomarkerPrediction]:
+    return {item.biomarker: item for item in state.predictions}
 
 
-def test_stage0_population_for_every_analyte(engine, twin_profile_codes, mock_prevent):
+def test_stage0_population_for_every_biomarker(engine, twin_profile_codes, mock_prevent):
     # Arrange
     request = TwinRequest(profile=twin_profile_codes, as_of=START)
 
@@ -35,7 +35,7 @@ def test_stage0_population_for_every_analyte(engine, twin_profile_codes, mock_pr
     state = twin_state(engine, request)
 
     # Assert
-    hdl = by_analyte(state)["hdl"]
+    hdl = by_biomarker(state)["hdl"]
     assert {item.basis for item in state.predictions} == {"population"}
     assert hdl.p50 == pytest.approx(STUB_PRIOR["hdl"][0])
     assert hdl.basis_label == "Typical for your profile"
@@ -53,7 +53,7 @@ def test_stage1_lab_band_is_centred_on_the_lab(
     state = twin_state(engine, request)
 
     # Assert
-    predictions = by_analyte(state)
+    predictions = by_biomarker(state)
     hdl = predictions["hdl"]
     assert hdl.basis == "lab"
     assert hdl.p50 == 38.0
@@ -72,8 +72,8 @@ def test_lab_band_is_narrower_than_population(engine, twin_profile_codes, mock_p
     after = TwinRequest(profile=twin_profile_codes, records=full_panel(), as_of=START)
 
     # Act
-    population = by_analyte(twin_state(engine, before))["hdl"]
-    lab = by_analyte(twin_state(engine, after))["hdl"]
+    population = by_biomarker(twin_state(engine, before))["hdl"]
+    lab = by_biomarker(twin_state(engine, after))["hdl"]
 
     # Assert
     assert lab.p90 - lab.p10 < (population.p90 - population.p10) / 2
@@ -88,7 +88,7 @@ def test_stage2_change_flag_from_repeat_labs(engine, twin_profile_codes, mock_pr
     request = TwinRequest(profile=twin_profile_codes, records=records, as_of=LATER)
 
     # Act
-    hdl = by_analyte(twin_state(engine, request))["hdl"]
+    hdl = by_biomarker(twin_state(engine, request))["hdl"]
 
     # Assert
     assert hdl.p50 == 55.0
@@ -109,7 +109,7 @@ def test_statin_start_resets_lipids_to_population(
     request = TwinRequest(profile=profile, records=full_panel(), as_of=LATER)
 
     # Act
-    predictions = by_analyte(twin_state(engine, request))
+    predictions = by_biomarker(twin_state(engine, request))
 
     # Assert
     assert predictions["hdl"].basis == "population"
@@ -144,7 +144,7 @@ def test_inactive_lab_stage_serves_population_but_risk_uses_the_lab(
     state = twin_state(never_worse, request)
 
     # Assert
-    assert by_analyte(state)["hdl"].basis == "population"
+    assert by_biomarker(state)["hdl"].basis == "population"
     assert state.risk.inputs_used["hdl"].source == "measured"
     assert state.risk.inputs_used["hdl"].value == 38.0
 
@@ -206,11 +206,11 @@ def test_wearable_adjustment_stays_in_shadow_until_activated(
     served_state = twin_state(wearable_engine(engine, active=True), request)
 
     # Assert
-    shadow_hba1c = by_analyte(shadow_state)["hba1c"]
+    shadow_hba1c = by_biomarker(shadow_state)["hba1c"]
     assert shadow_hba1c.basis == "lab"
-    assert [item.analyte for item in shadow_state.shadow] == ["hba1c"]
+    assert [item.biomarker for item in shadow_state.shadow] == ["hba1c"]
     assert shadow_state.shadow[0].shadow[1] == pytest.approx(shadow_hba1c.p50 * 1.1)
-    served_hba1c = by_analyte(served_state)["hba1c"]
+    served_hba1c = by_biomarker(served_state)["hba1c"]
     assert served_hba1c.basis == "lab_wearable"
     assert "wearable" in served_hba1c.basis_label
     assert shadow_state.model_versions["residual_hba1c_change"] == "residual-test"
@@ -274,7 +274,7 @@ def test_bands_do_not_jump_without_new_data(engine, twin_profile_codes, mock_pre
 
     # Act
     first, second = (
-        by_analyte(twin_state(engine, r))["hdl"] for r in (day_one, day_two)
+        by_biomarker(twin_state(engine, r))["hdl"] for r in (day_one, day_two)
     )
 
     # Assert

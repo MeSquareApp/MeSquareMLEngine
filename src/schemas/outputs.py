@@ -21,9 +21,9 @@ class ChangeOut(BaseModel):
 
 
 class PredictionOut(BaseModel):
-    """The served band of one analyte and what it is based on."""
+    """The served band of one biomarker and what it is based on."""
 
-    analyte: str
+    biomarker: str
     basis: Literal["population", "lab", "population_wearable", "lab_wearable"]
     basis_label: str
     p10: float

@@ -19,8 +19,8 @@ from datetime import date
 
 from src.components.personalization.biomarker_config import (
     BIOMARKERS,
-    BP_ANALYTES,
-    LIPID_ANALYTES,
+    BP_BIOMARKERS,
+    LIPID_BIOMARKERS,
 )
 from src.components.personalization.distributions import (
     Z_95,
@@ -69,17 +69,17 @@ class ChangeFlag:
     significant: bool
 
 
-def lab_sigma(analyte: str, days_since_lab: float) -> float:
+def lab_sigma(biomarker: str, days_since_lab: float) -> float:
     """Log-scale SD of the user's next lab around their latest lab.
 
     Args:
-        analyte: Canonical analyte name.
+        biomarker: Canonical biomarker name.
         days_since_lab: Age of the latest lab in days.
 
     Returns:
         sqrt(2 * measurement SD^2 + drift SD^2).
     """
-    spec = BIOMARKERS[analyte]
+    spec = BIOMARKERS[biomarker]
     measurement = log_sigma(spec.measurement_cv)
     drift = drift_sigma(spec.annual_drift_cv, days_since_lab)
     return math.sqrt(2.0 * measurement**2 + drift**2)
@@ -99,27 +99,27 @@ def lab_band(lab: Measurement, as_of: date) -> tuple[float, float, float]:
         (p10, p50, p90) in the canonical unit.
     """
     days = (as_of - lab.day).days
-    return band(lab.value, lab_sigma(lab.analyte, days))
+    return band(lab.value, lab_sigma(lab.biomarker, days))
 
 
-def reference_change(analyte: str) -> tuple[float, float]:
-    """Two-sided 95% reference change value of the analyte, as fractions.
+def reference_change(biomarker: str) -> tuple[float, float]:
+    """Two-sided 95% reference change value of the biomarker, as fractions.
 
     Uses the log-normal form (Fokkema et al., Clin Chem 2006), so a fall and a rise
     have different sizes.
 
     Args:
-        analyte: Canonical analyte name.
+        biomarker: Canonical biomarker name.
 
     Returns:
         (largest fall, largest rise) explained by measurement noise alone.
     """
-    limit = Z_95 * math.sqrt(2.0) * log_sigma(BIOMARKERS[analyte].measurement_cv)
+    limit = Z_95 * math.sqrt(2.0) * log_sigma(BIOMARKERS[biomarker].measurement_cv)
     return math.exp(-limit) - 1.0, math.exp(limit) - 1.0
 
 
 def change_flag(previous: Measurement, latest: Measurement) -> ChangeFlag:
-    """Compare two labs of one analyte against the 95% RCV.
+    """Compare two labs of one biomarker against the 95% RCV.
 
     Args:
         previous: The earlier lab.
@@ -128,7 +128,7 @@ def change_flag(previous: Measurement, latest: Measurement) -> ChangeFlag:
     Returns:
         The change and whether it exceeds the RCV.
     """
-    low, high = reference_change(latest.analyte)
+    low, high = reference_change(latest.biomarker)
     change = latest.value / previous.value - 1.0
     return ChangeFlag(
         previous_lab_id=previous.record_id,
@@ -142,39 +142,39 @@ def change_flag(previous: Measurement, latest: Measurement) -> ChangeFlag:
 
 
 def anchoring_labs(
-    analyte: str,
+    biomarker: str,
     labs: Sequence[Measurement],
     as_of: date,
     treatments: TreatmentChanges,
 ) -> list[Measurement]:
-    """Labs of an analyte that still describe the user, oldest first.
+    """Labs of an biomarker that still describe the user, oldest first.
 
     A lab taken after as_of is not observed yet. Pregnancy drops every lab. Starting
     a statin drops lipid labs taken before it; starting BP medication drops blood
-    pressure readings taken before it. With nothing left, the analyte returns to
+    pressure readings taken before it. With nothing left, the biomarker returns to
     the population prior until a new lab arrives.
 
     Args:
-        analyte: Canonical analyte name.
+        biomarker: Canonical biomarker name.
         labs: Accepted lab measurements.
         as_of: Day of the prediction.
         treatments: Treatment changes from the profile.
 
     Returns:
-        The usable labs of this analyte, sorted by time.
+        The usable labs of this biomarker, sorted by time.
     """
     if treatments.pregnant:
         return []
     started = None
-    if analyte in LIPID_ANALYTES:
+    if biomarker in LIPID_BIOMARKERS:
         started = treatments.statin_started_at
-    elif analyte in BP_ANALYTES:
+    elif biomarker in BP_BIOMARKERS:
         started = treatments.bp_meds_started_at
     return sorted(
         (
             lab
             for lab in labs
-            if lab.analyte == analyte
+            if lab.biomarker == biomarker
             and lab.day <= as_of
             and (started is None or lab.day >= started)
         ),

@@ -20,6 +20,19 @@ Once the app runs, go to http://localhost:8000/
 
 For documentation, go to http://localhost:8000/docs
 
+### Run with Docker
+
+The image installs R, `rpy2`, and `AHAprevent` from `PREVENT/AHAprevent_1.1.0.tar.gz`, then serves the API. Mount trained model artifacts from the host; set `DATABASE_URL` in `.env` only if you need shadow prediction writes.
+
+```bash
+docker build -t mesquare-mlengine .
+docker run --rm -p 8000:8000 --env-file .env \
+  -v "$(pwd)/artifacts:/app/artifacts" \
+  mesquare-mlengine
+```
+
+Open http://localhost:8000/docs. `GET /health` should report a PREVENT version such as `AHAprevent 1.1.0`, which confirms R and rpy2 loaded the package.
+
 ## Test
 
 ```bash
@@ -57,7 +70,7 @@ Requires `DATABASE_URL` and a populated `ml.cardiovascular_training` table. Writ
 How training works:
 - **Survey weights.** `wt_lab` for the blood biomarkers and `wt_mec` (joined from `nhanes.demographics`) for SBP, in fitting, early stopping, CV and every reported metric. Quantiles and coverage describe US adults, not the oversampled NHANES sample.
 - **Grouped splits.** The holdout and the CV folds are split by NHANES design cluster (stratum x PSU), so people from one sampled area are never on both sides.
-- **Outlier rule.** Target values outside the plausible ranges in `src/components/analytes.py` are dropped. These are the same limits lab ingestion uses.
+- **Outlier rule.** Target values outside the plausible ranges in `src/components/biomarkers.py` are dropped. These are the same limits lab ingestion uses.
 - **eGFR.** Race-free CKD-EPI 2021, the equation AHA PREVENT was derived with.
 - **Calibration.** The p10-p90 band is calibrated per sex x age band (Mondrian conformal) on out-of-fold predictions. The widening is stored in the bundle and applied by both endpoints. Coverage per subgroup is reported cross-conformally on every training row and on the held-out clusters.
 
@@ -75,7 +88,7 @@ Both endpoints return biomarker bands and a cardiovascular risk score in one res
 ### `POST /v1/predict`: population prior only
 
 A batch of profiles (`sex` / `race_eth` take NHANES labels, such as `Male` or `Non-Hispanic White`). Each patient gets:
-- p10/p50/p90 per analyte, all with `basis: "population"`;
+- p10/p50/p90 per biomarker, all with `basis: "population"`;
 - PREVENT run on the predicted p50 values, with `risk_basis: "estimated"`.
 
 PREVENT needs `height_cm` and `weight_kg`. Without them, `risk.status` is `not_generated` and `missing_inputs` lists them.
@@ -91,13 +104,13 @@ The backend sends `profile`, every `records` entry (labs, home BP, wearable dail
 ```
 
 How records are handled:
-- **Mapping.** Each record maps to a canonical analyte through one alias table (`src/components/analytes.py`).
+- **Mapping.** Each record maps to a canonical biomarker through one alias table (`src/components/biomarkers.py`).
 - **Units.** Values are converted to the canonical unit (mmol/L, mmol/mol, µmol/L and lb are accepted).
 - **Checks.** Values must be inside plausibility limits. Lab values must come from a measured source (`blood_test_lab_report_upload`, `lab_integration`, `clinic_measurement`, `home_bp_protocol`). Wearable values must come from a `wearable_*` or `smart_scale*` source.
 - **Rejections.** Anything else is listed in `rejected_records` with a reason, and logged.
 - **Derived values.** The engine computes non-HDL (total cholesterol minus HDL, same draw) and eGFR (CKD-EPI 2021). A value reported directly that day wins over a derived one.
 
-Per analyte, the served band follows the stage the user has reached:
+Per biomarker, the served band follows the stage the user has reached:
 
 | Stage | User has | Band | `basis` |
 |---|---|---|---|
@@ -109,7 +122,7 @@ Per analyte, the served band follows the stage the user has reached:
 Each band carries `basis_label` for the app ("Typical for your profile", "Based on your Nov 1 lab"), plus `source_lab_id` when lab-based.
 
 Rules:
-- **Anchor reset.** Starting a statin (`statin_started_at`) returns the lipids to the population prior until a new lab arrives. Starting BP medication (`bp_meds_started_at`) does the same for SBP, and `pregnant` does it for every analyte.
+- **Anchor reset.** Starting a statin (`statin_started_at`) returns the lipids to the population prior until a new lab arrives. Starting BP medication (`bp_meds_started_at`) does the same for SBP, and `pregnant` does it for every biomarker.
 - **Never worse.** A stage is served only where `config/activation.json` says it beat the stage below on evaluation.
 - **Risk.** PREVENT uses measured labs where present and the personalized p50 otherwise.
   - `inputs_used` gives each input's value and source (`measured`, `predicted`, `reported`).
@@ -130,18 +143,18 @@ The app should label any risk whose `risk_basis` is not `measured` as an estimat
 
 ### AHA PREVENT (R) setup
 
-PREVENT results require R and the official package from the AHA-DS-Analytics/PREVENT repo. If either is missing, the API still answers, with `risk.status: "not_generated"` and a `reason`.
+PREVENT results require R and the official package from the AHA-DS-Analytics/PREVENT checkout in this repo (`PREVENT/`). If either is missing, the API still answers, with `risk.status: "not_generated"` and a `reason`.
 
 ```bash
 brew install r
-R CMD INSTALL ../PREVENT/AHAprevent_1.1.0.tar.gz
+R CMD INSTALL PREVENT/AHAprevent_1.1.0.tar.gz
 ```
 
-On a Linux server or in Docker, install R (`r-base`) and run the same `R CMD INSTALL`. `rpy2` finds R through `R_HOME` or the `R` on `PATH`.
+On a Linux server, install R (`r-base`) and run the same `R CMD INSTALL`. The Docker image does this for you. `rpy2` finds R through `R_HOME` or the `R` on `PATH`.
 
 The package is GPL-3. Have whoever handles licensing review how it ships with the service.
 
-`tests/test_prevent.py` checks the installed package against a published reference case. It also checks it against the official `prevent_beta10_2024.dta` and `prevent_test.dta` when a PREVENT checkout is found. Set `PREVENT_REPO_DIR`, or keep it as a sibling `PREVENT/` folder.
+`tests/test_prevent.py` checks the installed package against a published reference case. It also checks it against the official `prevent_beta10_2024.dta` and `prevent_test.dta` when the PREVENT folder is present. Set `PREVENT_REPO_DIR` to override the default `PREVENT/` path.
 
 ## Goal status
 
@@ -167,7 +180,7 @@ Against the goals in "MeSquare Personalization Goals". Simulation numbers come f
 - **Estimated risk.** Returned, labelled by `risk_basis` with a range. This differs from v2's measured-only design, so the team should still confirm it.
 - **SBP without a cuff.** Predicted SBP is used and marked `predicted` in `inputs_used`. A `home_bp_protocol` reading makes it measured.
 - **Range method.** The p10/p90 plug-in, as the API table describes: deterministic (goal 7) and fast (goal 9). Monte Carlo was replaced.
-- **Abbreviations.** One alias table in `src/components/analytes.py`. Add the LlamaIndex extractor's exact names there once confirmed.
+- **Abbreviations.** One alias table in `src/components/biomarkers.py`. Add the LlamaIndex extractor's exact names there once confirmed.
 - **Simulation data.** Published within-person variation (`src/components/personalization/biomarker_config.py`), as `simulation.py` documents.
 
 ## Layout
@@ -178,7 +191,7 @@ notebooks/               research prototypes (quantile prior, digital twin)
 artifacts/quantile/      versioned model bundles (gitignored)
 artifacts/residual/      wearable residual models, once trained on real pairs (gitignored)
 config/activation.json   which personalization stages are served, with evidence
-src/components/          load, transform, analytes, record ingestion, calibration,
+src/components/          load, transform, biomarkers, record ingestion, calibration,
                          model train/eval/artifact, PREVENT, risk
 src/components/personalization/  lab anchor, wearable windows, residual model and gate,
                          activation registry, simulation
@@ -188,6 +201,8 @@ src/schemas/             API request/response models
 src/utils/               logging, errors, and shared helpers
 sql/derived/             patient features and training set, re-run on every ingest
 supabase/migrations/     schema creation, applied once by the Supabase CLI
+PREVENT/                 official AHAprevent R package and reference tables
+Dockerfile               API image with R, rpy2, and AHAprevent
 app.py                   launches the API
 train_model.py           trains and saves quantile models
 evaluate_lab_stage.py    simulates repeat labs and writes the activation registry

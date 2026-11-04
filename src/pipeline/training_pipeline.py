@@ -10,7 +10,7 @@ import polars as pl
 from sklearn.model_selection import GroupShuffleSplit
 
 from config.settings import Settings, settings
-from src.components.analytes import ANALYTES
+from src.components.biomarkers import BIOMARKER_CATALOG
 from src.components.calibration import (
     calibration_groups,
     cross_conformal_covered,
@@ -134,19 +134,19 @@ def design_clusters(frame: pl.DataFrame) -> FloatArray:
 
 
 def plausible_values(values: FloatArray, target: str) -> FloatArray:
-    """Outlier rule: values outside the analyte's plausible range become missing.
+    """Outlier rule: values outside the biomarker's plausible range become missing.
 
     The range is the one lab ingestion uses, so training never learns from a value
     the API would reject.
 
     Args:
         values: Target values, NaN where missing.
-        target: Analyte name.
+        target: Biomarker name.
 
     Returns:
         A copy with implausible values set to NaN.
     """
-    low, high = ANALYTES[target].plausible
+    low, high = BIOMARKER_CATALOG[target].plausible
     return np.where((values >= low) & (values <= high), values, np.nan)
 
 

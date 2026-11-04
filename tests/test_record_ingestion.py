@@ -2,7 +2,7 @@ from datetime import UTC, date, datetime
 
 import pytest
 
-from src.components.analytes import ALIAS_TO_ANALYTE, is_plausible, normalize_name
+from src.components.biomarkers import ALIAS_TO_BIOMARKER, is_plausible, normalize_name
 from src.components.egfr import egfr_ckd_epi_2021
 from src.components.record_ingestion import (
     RecordError,
@@ -15,19 +15,19 @@ from tests.conftest import START, full_panel, lab_record
 
 
 @pytest.mark.parametrize(
-    ("raw", "analyte"),
+    ("raw", "biomarker"),
     [(" HDL-C ", "hdl"), ("TC", "total_chol"), ("Hemoglobin A1c", "hba1c"),
      ("CREAT", "creatinine"), ("resting_heart_rate", "resting_heart_rate")],
 )  # fmt: skip
-def test_aliases_map_to_canonical_analytes(raw, analyte):
+def test_aliases_map_to_canonical_biomarkers(raw, biomarker):
     # Arrange
     name = normalize_name(raw)
 
     # Act
-    mapped = ALIAS_TO_ANALYTE[name]
+    mapped = ALIAS_TO_BIOMARKER[name]
 
     # Assert
-    assert mapped == analyte
+    assert mapped == biomarker
 
 
 def test_is_plausible():
@@ -37,7 +37,7 @@ def test_is_plausible():
 
 
 @pytest.mark.parametrize(
-    ("analyte", "value", "unit", "expected"),
+    ("biomarker", "value", "unit", "expected"),
     [
         ("hdl", 1.3, "mmol/L", 50.27),
         ("hba1c", 42.0, "mmol/mol", 5.99),
@@ -46,9 +46,9 @@ def test_is_plausible():
         ("egfr", 80.0, "mL/min/1.73m²", 80.0),
     ],
 )
-def test_convert_unit(analyte, value, unit, expected):
+def test_convert_unit(biomarker, value, unit, expected):
     # Arrange / Act
-    converted = convert_unit(analyte, value, unit)
+    converted = convert_unit(biomarker, value, unit)
 
     # Assert
     assert converted == pytest.approx(expected, abs=0.01)
@@ -103,10 +103,10 @@ def test_complete_panel_derives_non_hdl_and_egfr():
     ingested = ingest_records(records, age=52, sex=1)
 
     # Assert
-    by_analyte = {lab.analyte: lab for lab in ingested.labs}
-    assert by_analyte["non_hdl"].value == 192.0
-    assert by_analyte["non_hdl"].derived_from == ("TC-2026-01-01", "HDL-2026-01-01")
-    assert by_analyte["egfr"].value == pytest.approx(egfr_ckd_epi_2021(1.0, 52, 1))
+    by_biomarker = {lab.biomarker: lab for lab in ingested.labs}
+    assert by_biomarker["non_hdl"].value == 192.0
+    assert by_biomarker["non_hdl"].derived_from == ("TC-2026-01-01", "HDL-2026-01-01")
+    assert by_biomarker["egfr"].value == pytest.approx(egfr_ckd_epi_2021(1.0, 52, 1))
     assert ingested.rejected == []
 
 
@@ -123,7 +123,7 @@ def test_direct_value_wins_over_derived_and_partial_panel_is_kept():
     ingested = ingest_records(records, age=52, sex=1)
 
     # Assert
-    non_hdl = [lab for lab in ingested.labs if lab.analyte == "non_hdl"]
+    non_hdl = [lab for lab in ingested.labs if lab.biomarker == "non_hdl"]
     assert [(lab.day, lab.value) for lab in non_hdl] == [(START, 185.0)]
 
 
@@ -136,4 +136,4 @@ def test_bad_unit_record_is_rejected_and_the_rest_accepted():
 
     # Assert
     assert [item.record_id for item in ingested.rejected] == ["bad-unit"]
-    assert len([lab for lab in ingested.labs if lab.analyte == "hdl"]) == 1
+    assert len([lab for lab in ingested.labs if lab.biomarker == "hdl"]) == 1

@@ -6,7 +6,7 @@ Every record looks like::
      "measurement_method": "blood_test_lab_report_upload",
      "measured_at": "2026-11-03T20:50:55.898Z"}
 
-Records are mapped to a canonical analyte, converted to its canonical unit, checked
+Records are mapped to a canonical biomarker, converted to its canonical unit, checked
 against plausibility limits and the measurement method, or rejected with a reason
 (and logged). The engine then derives non-HDL (total cholesterol minus HDL from the
 same draw) and eGFR (CKD-EPI 2021 from creatinine) itself.
@@ -19,9 +19,9 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 
-from src.components.analytes import (
-    ALIAS_TO_ANALYTE,
-    ANALYTES,
+from src.components.biomarkers import (
+    ALIAS_TO_BIOMARKER,
+    BIOMARKER_CATALOG,
     HBA1C_NGSP_INTERCEPT,
     HBA1C_NGSP_SLOPE,
     KG_PER_LB,
@@ -46,7 +46,7 @@ REQUIRED_FIELDS = (
     "measurement_method",
     "measured_at",
 )
-CHOLESTEROL_ANALYTES = frozenset({"total_chol", "hdl", "non_hdl", "ldl"})
+CHOLESTEROL_BIOMARKERS = frozenset({"total_chol", "hdl", "non_hdl", "ldl"})
 
 _IDENTITY: Callable[[float], float] = float
 # Unit spellings are normalized with _normalize_unit before lookup.
@@ -56,7 +56,7 @@ UNIT_CONVERSIONS: dict[str, dict[str, Callable[[float], float]]] = {
             "mg/dl": _IDENTITY,
             "mmol/l": lambda value: value * MG_DL_PER_MMOL_L_CHOLESTEROL,
         }
-        for name in CHOLESTEROL_ANALYTES
+        for name in CHOLESTEROL_BIOMARKERS
     },
     "triglycerides": {"mg/dl": _IDENTITY},
     "hba1c": {
@@ -83,7 +83,7 @@ class Measurement:
     Attributes:
         record_id: The input record's id, or the main source record for a derived
             value.
-        analyte: Canonical analyte or wearable metric name.
+        biomarker: Canonical biomarker or wearable metric name.
         value: Value in the canonical unit.
         measured_at: Measurement time, UTC.
         method: The record's measurement_method.
@@ -91,7 +91,7 @@ class Measurement:
     """
 
     record_id: str
-    analyte: str
+    biomarker: str
     value: float
     measured_at: datetime
     method: str
@@ -169,15 +169,15 @@ def parse_timestamp(raw: object) -> datetime:
     return stamp.replace(tzinfo=UTC) if stamp.tzinfo is None else stamp.astimezone(UTC)
 
 
-def convert_unit(analyte: str, value: float, unit: str) -> float:
-    """Convert a value to the analyte's canonical unit.
+def convert_unit(biomarker: str, value: float, unit: str) -> float:
+    """Convert a value to the biomarker's canonical unit.
 
     Example:
         >>> round(convert_unit("hdl", 1.3, "mmol/L"), 1)
         50.3
 
     Args:
-        analyte: Canonical analyte name.
+        biomarker: Canonical biomarker name.
         value: Reported value.
         unit: Reported unit.
 
@@ -185,11 +185,11 @@ def convert_unit(analyte: str, value: float, unit: str) -> float:
         The value in the canonical unit.
 
     Raises:
-        RecordError: If the unit is not supported for this analyte.
+        RecordError: If the unit is not supported for this biomarker.
     """
-    converter = UNIT_CONVERSIONS.get(analyte, {}).get(_normalize_unit(unit))
+    converter = UNIT_CONVERSIONS.get(biomarker, {}).get(_normalize_unit(unit))
     if converter is None:
-        raise RecordError(f"unit {unit!r} is not supported for {analyte}")
+        raise RecordError(f"unit {unit!r} is not supported for {biomarker}")
     return converter(value)
 
 
@@ -209,31 +209,31 @@ def parse_record(record: RawRecord) -> Measurement:
     if missing:
         raise RecordError(f"missing fields: {', '.join(missing)}")
     abbr = str(record["biomarker_abbr"])
-    analyte_name = ALIAS_TO_ANALYTE.get(normalize_name(abbr))
-    if analyte_name is None:
+    biomarker_name = ALIAS_TO_BIOMARKER.get(normalize_name(abbr))
+    if biomarker_name is None:
         raise RecordError(f"unknown biomarker_abbr {abbr!r}")
-    analyte = ANALYTES[analyte_name]
-    if analyte.kind == "unused":
-        raise RecordError(f"{analyte_name} is not used by the engine")
+    biomarker = BIOMARKER_CATALOG[biomarker_name]
+    if biomarker.kind == "unused":
+        raise RecordError(f"{biomarker_name} is not used by the engine")
     raw_value = record["value"]
     if isinstance(raw_value, bool) or not isinstance(raw_value, int | float):
         raise RecordError("value is not a number")
     if not math.isfinite(float(raw_value)):
         raise RecordError("value is not finite")
     method = str(record["measurement_method"])
-    if analyte.kind == "lab" and method not in MEASURED_LAB_METHODS:
+    if biomarker.kind == "lab" and method not in MEASURED_LAB_METHODS:
         raise RecordError(f"measurement_method {method!r} is not a measured source")
-    if analyte.kind == "wearable" and not method.startswith(WEARABLE_METHOD_PREFIXES):
+    if biomarker.kind == "wearable" and not method.startswith(WEARABLE_METHOD_PREFIXES):
         raise RecordError(f"measurement_method {method!r} is not a wearable source")
-    value = convert_unit(analyte_name, float(raw_value), str(record["unit"]))
-    if not is_plausible(analyte_name, value):
-        low, high = analyte.plausible
+    value = convert_unit(biomarker_name, float(raw_value), str(record["unit"]))
+    if not is_plausible(biomarker_name, value):
+        low, high = biomarker.plausible
         raise RecordError(
-            f"{analyte_name} {value:.4g} {analyte.unit} is outside {low:g}-{high:g}"
+            f"{biomarker_name} {value:.4g} {biomarker.unit} is outside {low:g}-{high:g}"
         )
     return Measurement(
         record_id=str(record["id"]),
-        analyte=analyte_name,
+        biomarker=biomarker_name,
         value=value,
         measured_at=parse_timestamp(record["measured_at"]),
         method=method,
@@ -273,7 +273,7 @@ def ingest_records(
             )
             rejected.append(rejection)
             continue
-        kind = ANALYTES[measurement.analyte].kind
+        kind = BIOMARKER_CATALOG[measurement.biomarker].kind
         (labs if kind == "lab" else wearables).append(measurement)
     labs += derive_values(labs, age, sex)
     return IngestedRecords(
@@ -289,7 +289,7 @@ def derive_values(
     """Non-HDL and eGFR the engine computes, never the extractor.
 
     Non-HDL is total cholesterol minus HDL from the same draw (same UTC day). eGFR
-    uses CKD-EPI 2021 from creatinine. A derived value is skipped when the analyte
+    uses CKD-EPI 2021 from creatinine. A derived value is skipped when the biomarker
     was reported directly that day, so one draw is counted once.
 
     Args:
@@ -300,24 +300,24 @@ def derive_values(
     Returns:
         The derived measurements.
     """
-    reported = {(lab.analyte, lab.day) for lab in labs}
-    hdl_by_day = {lab.day: lab for lab in labs if lab.analyte == "hdl"}
+    reported = {(lab.biomarker, lab.day) for lab in labs}
+    hdl_by_day = {lab.day: lab for lab in labs if lab.biomarker == "hdl"}
     derived: dict[tuple[str, date], Measurement] = {}
     for lab in labs:
-        if lab.analyte == "total_chol" and lab.day in hdl_by_day:
+        if lab.biomarker == "total_chol" and lab.day in hdl_by_day:
             hdl = hdl_by_day[lab.day]
             candidate = Measurement(
                 record_id=lab.record_id,
-                analyte="non_hdl",
+                biomarker="non_hdl",
                 value=lab.value - hdl.value,
                 measured_at=lab.measured_at,
                 method=lab.method,
                 derived_from=(lab.record_id, hdl.record_id),
             )
-        elif lab.analyte == "creatinine" and sex in (1, 2):
+        elif lab.biomarker == "creatinine" and sex in (1, 2):
             candidate = Measurement(
                 record_id=lab.record_id,
-                analyte="egfr",
+                biomarker="egfr",
                 value=egfr_ckd_epi_2021(lab.value, age, sex),
                 measured_at=lab.measured_at,
                 method=lab.method,
@@ -325,7 +325,7 @@ def derive_values(
             )
         else:
             continue
-        key = (candidate.analyte, candidate.day)
+        key = (candidate.biomarker, candidate.day)
         if key not in reported:
             derived.setdefault(key, candidate)
     return list(derived.values())

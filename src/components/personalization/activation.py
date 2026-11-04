@@ -1,4 +1,4 @@
-"""Which personalization stages may be served, per analyte ("never worse").
+"""Which personalization stages may be served, per biomarker ("never worse").
 
 A stage is served only after it beat the stage below it on evaluation. The lab stage
 is judged by simulate_lab_stage(); the wearable stage only by gate_residual_model()
@@ -27,7 +27,7 @@ class ActivationError(MeSquareError):
 
 @dataclass(frozen=True)
 class StageDecision:
-    """Whether one stage is served for one analyte, and why.
+    """Whether one stage is served for one biomarker, and why.
 
     Attributes:
         active: Served when True; shadow or off when False.
@@ -40,26 +40,26 @@ class StageDecision:
 
 @dataclass(frozen=True)
 class ActivationRegistry:
-    """Served stages per analyte.
+    """Served stages per biomarker.
 
     Attributes:
         version: Registry version, reported in model_versions.
-        lab: Lab-anchored stage decision per analyte.
-        wearable: Wearable residual stage decision per analyte.
+        lab: Lab-anchored stage decision per biomarker.
+        wearable: Wearable residual stage decision per biomarker.
     """
 
     version: str
     lab: dict[str, StageDecision]
     wearable: dict[str, StageDecision]
 
-    def lab_active(self, analyte: str) -> bool:
-        """Whether the lab-anchored band may be served for an analyte."""
-        decision = self.lab.get(analyte)
+    def lab_active(self, biomarker: str) -> bool:
+        """Whether the lab-anchored band may be served for an biomarker."""
+        decision = self.lab.get(biomarker)
         return decision is not None and decision.active
 
-    def wearable_active(self, analyte: str) -> bool:
-        """Whether wearable residual adjustments may be served for an analyte."""
-        decision = self.wearable.get(analyte)
+    def wearable_active(self, biomarker: str) -> bool:
+        """Whether wearable residual adjustments may be served for an biomarker."""
+        decision = self.wearable.get(biomarker)
         return decision is not None and decision.active
 
 
@@ -70,24 +70,24 @@ def validate(registry: ActivationRegistry) -> None:
         registry: Registry to check.
 
     Raises:
-        ActivationError: If a lab-only analyte has wearables on, or wearables are on
-            for an analyte before every analyte ahead of it in the order.
+        ActivationError: If a lab-only biomarker has wearables on, or wearables are on
+            for an biomarker before every biomarker ahead of it in the order.
     """
-    for analyte in LAB_ONLY:
-        if registry.wearable_active(analyte):
-            raise ActivationError(f"{analyte} is lab-only; wearables cannot activate")
-    for position, analyte in enumerate(WEARABLE_ACTIVATION_ORDER):
+    for biomarker in LAB_ONLY:
+        if registry.wearable_active(biomarker):
+            raise ActivationError(f"{biomarker} is lab-only; wearables cannot activate")
+    for position, biomarker in enumerate(WEARABLE_ACTIVATION_ORDER):
         ahead = WEARABLE_ACTIVATION_ORDER[:position]
-        if registry.wearable_active(analyte) and not all(
+        if registry.wearable_active(biomarker) and not all(
             registry.wearable_active(earlier) for earlier in ahead
         ):
             raise ActivationError(
-                f"{analyte} cannot activate before {', '.join(ahead)}"
+                f"{biomarker} cannot activate before {', '.join(ahead)}"
             )
     allowed = set(WEARABLE_ACTIVATION_ORDER)
-    for analyte in registry.wearable:
-        if registry.wearable_active(analyte) and analyte not in allowed:
-            raise ActivationError(f"{analyte} is not in the wearable activation order")
+    for biomarker in registry.wearable:
+        if registry.wearable_active(biomarker) and biomarker not in allowed:
+            raise ActivationError(f"{biomarker} is not in the wearable activation order")
 
 
 def load_registry(path: Path = REGISTRY_PATH) -> ActivationRegistry:

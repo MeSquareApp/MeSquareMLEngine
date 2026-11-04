@@ -9,7 +9,7 @@ import polars as pl
 from sklearn.model_selection import GroupShuffleSplit
 
 from config.settings import Settings, settings
-from src.components.analytes import MODEL_ANALYTES
+from src.components.biomarkers import MODEL_BIOMARKERS
 from src.components.calibration import calibration_groups, widening_per_row
 from src.components.feature_engineering import prepare_features
 from src.components.model_artifact import QuantileModelBundle
@@ -45,22 +45,22 @@ WEARABLE_PENDING = (
 
 
 def grouped_split(
-    frame: pl.DataFrame, analyte: str
+    frame: pl.DataFrame, biomarker: str
 ) -> tuple[pl.DataFrame, pl.DataFrame]:
-    """Training and held-out rows of one analyte, split exactly as training split it.
+    """Training and held-out rows of one biomarker, split exactly as training split it.
 
     Args:
         frame: Training frame from load_training_frame().
-        analyte: Target analyte.
+        biomarker: Target biomarker.
 
     Returns:
         (train, test) rows with a plausible value and a positive survey weight.
     """
     values = plausible_values(
-        frame[analyte].cast(pl.Float64).fill_null(np.nan).to_numpy(), analyte
+        frame[biomarker].cast(pl.Float64).fill_null(np.nan).to_numpy(), biomarker
     )
     weights = (
-        frame[TARGET_WEIGHTS[analyte]].cast(pl.Float64).fill_null(np.nan).to_numpy()
+        frame[TARGET_WEIGHTS[biomarker]].cast(pl.Float64).fill_null(np.nan).to_numpy()
     )
     usable = ~np.isnan(values) & np.isfinite(weights) & (weights > 0)
     rows = frame.filter(pl.Series(usable))
@@ -75,21 +75,21 @@ def grouped_split(
     return train_rows, test_rows
 
 
-def held_out_rows(frame: pl.DataFrame, analyte: str) -> pl.DataFrame:
-    """The grouped holdout of one analyte.
+def held_out_rows(frame: pl.DataFrame, biomarker: str) -> pl.DataFrame:
+    """The grouped holdout of one biomarker.
 
     Args:
         frame: Training frame from load_training_frame().
-        analyte: Target analyte.
+        biomarker: Target biomarker.
 
     Returns:
         Held-out rows with a plausible value and a positive survey weight.
     """
-    return grouped_split(frame, analyte)[1]
+    return grouped_split(frame, biomarker)[1]
 
 
 def holdout_predictions(
-    bundle: QuantileModelBundle, train: pl.DataFrame, test: pl.DataFrame, analyte: str
+    bundle: QuantileModelBundle, train: pl.DataFrame, test: pl.DataFrame, biomarker: str
 ) -> FloatArray:
     """Calibrated holdout quantiles from the bundle's tuned settings, fit on train only.
 
@@ -101,16 +101,16 @@ def holdout_predictions(
         bundle: Production bundle (for configuration, levels and widening).
         train: Training rows from grouped_split().
         test: Held-out rows from grouped_split().
-        analyte: Target analyte.
+        biomarker: Target biomarker.
 
     Returns:
         (p10, p50, p90) per held-out row.
     """
-    cv = bundle.metrics["cv"][analyte]  # type: ignore[index]
+    cv = bundle.metrics["cv"][biomarker]  # type: ignore[index]
     data = TrainingData(
         prepare_features(train, bundle.category_levels),
-        train[analyte].cast(pl.Float64).to_numpy(),
-        train[TARGET_WEIGHTS[analyte]].cast(pl.Float64).to_numpy(),
+        train[biomarker].cast(pl.Float64).to_numpy(),
+        train[TARGET_WEIGHTS[biomarker]].cast(pl.Float64).to_numpy(),
         design_clusters(train),
     )
     trees = {float(tau): int(n) for tau, n in cv["n_estimators_by_tau"].items()}
@@ -120,7 +120,7 @@ def holdout_predictions(
         predict_quantiles(models, features, bundle.quantiles),
         bundle.quantiles,
         widening_per_row(
-            calibration_groups(features), bundle.interval_widening.get(analyte, {})
+            calibration_groups(features), bundle.interval_widening.get(biomarker, {})
         ),
     )
 
@@ -128,7 +128,7 @@ def holdout_predictions(
 def evaluate_lab_stage(
     app_settings: Settings | None = None, registry_path: Path = REGISTRY_PATH
 ) -> ActivationRegistry:
-    """Simulate repeat labs for every analyte and write the activation registry.
+    """Simulate repeat labs for every biomarker and write the activation registry.
 
     Args:
         app_settings: Settings with DATABASE_URL and model_dir.
@@ -142,33 +142,33 @@ def evaluate_lab_stage(
     predictor = QuantilePredictor(bundle)
     frame = load_training_frame(app_settings)
     lab: dict[str, StageDecision] = {}
-    for analyte in MODEL_ANALYTES:
-        rows = held_out_rows(frame, analyte)
-        population = predictor.quantile_matrices(rows.to_dicts())[analyte]
+    for biomarker in MODEL_BIOMARKERS:
+        rows = held_out_rows(frame, biomarker)
+        population = predictor.quantile_matrices(rows.to_dicts())[biomarker]
         metrics = simulate_lab_stage(
             SimulationInput(
-                analyte=analyte,
-                truth=rows[analyte].cast(pl.Float64).to_numpy(),
+                biomarker=biomarker,
+                truth=rows[biomarker].cast(pl.Float64).to_numpy(),
                 population=population,
-                weights=rows[TARGET_WEIGHTS[analyte]].cast(pl.Float64).to_numpy(),
+                weights=rows[TARGET_WEIGHTS[biomarker]].cast(pl.Float64).to_numpy(),
             )
         )
-        logger.info("%s lab stage: %s", analyte, metrics)
-        lab[analyte] = StageDecision(
+        logger.info("%s lab stage: %s", biomarker, metrics)
+        lab[biomarker] = StageDecision(
             active=bool(metrics["beats_population"]),
             evidence={"method": "simulation", "prior": bundle.version, **metrics},
         )
     wearable = {
-        analyte: StageDecision(
+        biomarker: StageDecision(
             active=False,
             evidence={
                 "reason": "eGFR stays lab-only"
-                if analyte in LAB_ONLY
+                if biomarker in LAB_ONLY
                 else WEARABLE_PENDING,
-                "eligible": analyte in WEARABLE_ACTIVATION_ORDER,
+                "eligible": biomarker in WEARABLE_ACTIVATION_ORDER,
             },
         )
-        for analyte in MODEL_ANALYTES
+        for biomarker in MODEL_BIOMARKERS
     }
     registry = ActivationRegistry(
         version=f"activation-{bundle.version}", lab=lab, wearable=wearable

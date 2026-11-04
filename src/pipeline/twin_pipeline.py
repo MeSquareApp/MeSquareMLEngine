@@ -1,6 +1,6 @@
-"""Digital twin state: personalized bands per analyte plus a PREVENT risk response.
+"""Digital twin state: personalized bands per biomarker plus a PREVENT risk response.
 
-Stages, per analyte (see the activation registry for what may be served):
+Stages, per biomarker (see the activation registry for what may be served):
 
 0. Population: the NHANES quantile prior for the profile ("population").
 1. First lab: a band centred on the latest measured lab ("lab").
@@ -22,7 +22,7 @@ from typing import Literal, Protocol
 import numpy as np
 import orjson
 
-from src.components.analytes import MODEL_ANALYTES
+from src.components.biomarkers import MODEL_BIOMARKERS
 from src.components.personalization.activation import ActivationRegistry
 from src.components.personalization.biomarker_config import BIOMARKERS
 from src.components.personalization.lab_anchor import (
@@ -88,8 +88,8 @@ class TwinEngine:
 
     Attributes:
         prior: Population quantile model.
-        registry: Served stages per analyte.
-        residual_models: Wearable residual models keyed (analyte, mode).
+        registry: Served stages per biomarker.
+        residual_models: Wearable residual models keyed (biomarker, mode).
         prevent_version: Version of the official AHA PREVENT package.
     """
 
@@ -117,11 +117,11 @@ class TwinRequest:
 
 
 @dataclass(frozen=True)
-class AnalytePrediction:
-    """The served band of one analyte.
+class BiomarkerPrediction:
+    """The served band of one biomarker.
 
     Attributes:
-        analyte: Canonical analyte name.
+        biomarker: Canonical biomarker name.
         basis: What the band is based on.
         basis_label: The same, in words the app can show.
         p10: 10th percentile.
@@ -134,7 +134,7 @@ class AnalytePrediction:
         change: Latest vs previous lab against the 95% RCV, with 2+ labs.
     """
 
-    analyte: str
+    biomarker: str
     basis: Basis
     basis_label: str
     p10: float
@@ -152,14 +152,14 @@ class ShadowPrediction:
     """A wearable-adjusted band computed but not served (shadow mode).
 
     Attributes:
-        analyte: Canonical analyte name.
+        biomarker: Canonical biomarker name.
         mode: "level" or "change".
         served: The band actually served.
         shadow: The wearable-adjusted band.
         model_version: Residual model version.
     """
 
-    analyte: str
+    biomarker: str
     mode: ResidualMode
     served: Band
     shadow: Band
@@ -185,7 +185,7 @@ class TwinState:
 
     Attributes:
         as_of: Day of the state.
-        predictions: One served band per analyte.
+        predictions: One served band per biomarker.
         risk: PREVENT risk block.
         rejected: Records that were not used, and why.
         wearable_windows: Wearable window summaries.
@@ -196,7 +196,7 @@ class TwinState:
     """
 
     as_of: date
-    predictions: list[AnalytePrediction]
+    predictions: list[BiomarkerPrediction]
     risk: RiskAssessment
     rejected: list[Rejection]
     wearable_windows: dict[str, WindowSummary]
@@ -228,17 +228,17 @@ def twin_state(engine: TwinEngine, request: TwinRequest) -> TwinState:
     )
     quantiles = engine.prior.predict_quantiles(_prior_features(profile))
     windows = feature_windows(ingested.wearables, as_of)
-    predictions: list[AnalytePrediction] = []
+    predictions: list[BiomarkerPrediction] = []
     shadow: list[ShadowPrediction] = []
     anchors: dict[str, Measurement] = {}
-    for analyte in MODEL_ANALYTES:
-        labs = anchoring_labs(analyte, ingested.labs, as_of, treatments)
+    for biomarker in MODEL_BIOMARKERS:
+        labs = anchoring_labs(biomarker, ingested.labs, as_of, treatments)
         if labs:
-            anchors[analyte] = labs[-1]
-        prediction, shadow_band = _analyte_prediction(
+            anchors[biomarker] = labs[-1]
+        prediction, shadow_band = _biomarker_prediction(
             engine,
-            (analyte, as_of),
-            (quantiles[analyte], labs),
+            (biomarker, as_of),
+            (quantiles[biomarker], labs),
             (windows, ingested.wearables),
         )
         predictions.append(prediction)
@@ -258,17 +258,17 @@ def twin_state(engine: TwinEngine, request: TwinRequest) -> TwinState:
     )
 
 
-def _analyte_prediction(
+def _biomarker_prediction(
     engine: TwinEngine,
     target: tuple[str, date],
     evidence: tuple[dict[float, float], list[Measurement]],
     wearable: tuple[dict[str, WindowSummary], list[Measurement]],
-) -> tuple[AnalytePrediction, ShadowPrediction | None]:
-    """Served band of one analyte and, when a residual model applies, its shadow."""
-    analyte, as_of = target
+) -> tuple[BiomarkerPrediction, ShadowPrediction | None]:
+    """Served band of one biomarker and, when a residual model applies, its shadow."""
+    biomarker, as_of = target
     population, labs = evidence
-    spec = BIOMARKERS[analyte]
-    latest = labs[-1] if labs and engine.registry.lab_active(analyte) else None
+    spec = BIOMARKERS[biomarker]
+    latest = labs[-1] if labs and engine.registry.lab_active(biomarker) else None
     if latest is not None:
         served: Band = lab_band(latest, as_of)
         basis: Basis = "lab"
@@ -278,16 +278,16 @@ def _analyte_prediction(
         basis = "population"
         label = "Typical for your profile"
 
-    shadow = _shadow(engine, (analyte, served), latest, wearable)
-    if shadow is not None and engine.registry.wearable_active(analyte):
+    shadow = _shadow(engine, (biomarker, served), latest, wearable)
+    if shadow is not None and engine.registry.wearable_active(biomarker):
         served = shadow.shadow
         basis = "lab_wearable" if latest is not None else "population_wearable"
         label += ", adjusted using your wearable trends"
 
     low, high = spec.clamp
     p10, p50, p90 = (float(np.clip(value, low, high)) for value in served)
-    prediction = AnalytePrediction(
-        analyte=analyte,
+    prediction = BiomarkerPrediction(
+        biomarker=biomarker,
         basis=basis,
         basis_label=label,
         p10=p10,
@@ -309,7 +309,7 @@ def _shadow(
     wearable: tuple[dict[str, WindowSummary], list[Measurement]],
 ) -> ShadowPrediction | None:
     """Wearable-adjusted band from a residual model, if one applies."""
-    analyte, band = served
+    biomarker, band = served
     windows, wearables = wearable
     if latest is not None:
         mode: ResidualMode = "change"
@@ -318,14 +318,14 @@ def _shadow(
     else:
         mode = "level"
         eligible = any(w.sufficient for w in windows.values() if w.days == 30)
-    model = engine.residual_models.get((analyte, mode))
+    model = engine.residual_models.get((biomarker, mode))
     if model is None or not eligible:
         return None
     features = feature_vector(windows)
     row = np.array([[features[name] for name in FEATURE_NAMES]])
     adjusted = model.predict_band(row, np.array([band[1]]))[0]
     return ShadowPrediction(
-        analyte=analyte,
+        biomarker=biomarker,
         mode=mode,
         served=band,
         shadow=(float(adjusted[0]), float(adjusted[1]), float(adjusted[2])),
@@ -335,7 +335,7 @@ def _shadow(
 
 def _risk(
     profile: Profile,
-    predictions: list[AnalytePrediction],
+    predictions: list[BiomarkerPrediction],
     measured: tuple[dict[str, Measurement], list[Measurement], date],
 ) -> RiskAssessment:
     """PREVENT on measured labs where present, personalized p50s otherwise."""
@@ -360,8 +360,8 @@ def _risk(
 
     inputs: dict[str, InputEstimate] = {}
     for prediction in predictions:
-        lab = anchors.get(prediction.analyte)
-        inputs[prediction.analyte] = (
+        lab = anchors.get(prediction.biomarker)
+        inputs[prediction.biomarker] = (
             InputEstimate(lab.value, "measured")
             if lab is not None
             else InputEstimate(
@@ -393,7 +393,7 @@ def _bmi(profile: Profile, wearables: list[Measurement], as_of: date) -> InputEs
     recent = [
         item.value
         for item in wearables
-        if item.analyte == "weight"
+        if item.biomarker == "weight"
         and 0 <= (as_of - item.day).days < SCALE_WEIGHT_MAX_AGE_DAYS
     ]
     if recent:
@@ -417,8 +417,8 @@ def _model_versions(engine: TwinEngine) -> dict[str, str]:
         "prevent": engine.prevent_version,
         "activation": engine.registry.version,
     }
-    for (analyte, mode), model in sorted(engine.residual_models.items()):
-        versions[f"residual_{analyte}_{mode}"] = model.version
+    for (biomarker, mode), model in sorted(engine.residual_models.items()):
+        versions[f"residual_{biomarker}_{mode}"] = model.version
     return versions
 
 

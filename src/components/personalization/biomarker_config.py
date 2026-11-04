@@ -1,11 +1,11 @@
-"""Within-person variation of each modelled analyte. Tune here, nowhere else.
+"""Within-person variation of each modelled biomarker. Tune here, nowhere else.
 
 measurement_cv combines the analytical CV and the within-person biological CV of one
 measurement (EFLM Biological Variation Database: total and HDL cholesterol about
 5-6%, HbA1c about 1.5%, creatinine about 4.5%, plus typical analytical CVs; home BP
 protocol day-to-day CV about 6%). annual_drift_cv is slow within-person change over a
 year with no change in treatment. Both are applied on the log scale, because every
-analyte is right-skewed.
+biomarker is right-skewed.
 """
 
 from __future__ import annotations
@@ -15,10 +15,10 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class BiomarkerSpec:
-    """Variation settings for one analyte.
+    """Variation settings for one biomarker.
 
     Attributes:
-        name: Analyte name, matching the prior model's target.
+        name: Biomarker name, matching the prior model's target.
         unit: Canonical unit.
         measurement_cv: Analytical plus within-person CV of a single measurement.
         annual_drift_cv: Within-person drift over a year with no treatment change.
@@ -43,6 +43,6 @@ BIOMARKERS: dict[str, BiomarkerSpec] = {
     )
 }
 
-# Analytes whose lab anchor is reset when a treatment that changes them starts.
-LIPID_ANALYTES = frozenset({"non_hdl", "hdl"})
-BP_ANALYTES = frozenset({"sbp"})
+# Biomarkers whose lab anchor is reset when a treatment that changes them starts.
+LIPID_BIOMARKERS = frozenset({"non_hdl", "hdl"})
+BP_BIOMARKERS = frozenset({"sbp"})

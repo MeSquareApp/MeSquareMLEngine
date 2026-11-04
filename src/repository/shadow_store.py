@@ -19,14 +19,14 @@ from src.pipeline.twin_pipeline import ShadowPrediction
 INSERT_SHADOW = text(
     """
     INSERT INTO ml.shadow_predictions (
-        user_id, analyte, mode, as_of, served_band, shadow_band,
+        user_id, biomarker, mode, as_of, served_band, shadow_band,
         residual_model_version, prior_version, input_hash
     )
     VALUES (
-        :user_id, :analyte, :mode, :as_of, :served_band, :shadow_band,
+        :user_id, :biomarker, :mode, :as_of, :served_band, :shadow_band,
         :residual_model_version, :prior_version, :input_hash
     )
-    ON CONFLICT (user_id, analyte, mode, as_of, input_hash) DO NOTHING
+    ON CONFLICT (user_id, biomarker, mode, as_of, input_hash) DO NOTHING
     """
 )
 
@@ -88,7 +88,7 @@ class ShadowStore:
         rows = [
             {
                 "user_id": batch.user_id,
-                "analyte": item.analyte,
+                "biomarker": item.biomarker,
                 "mode": item.mode,
                 "as_of": batch.as_of,
                 "served_band": list(item.served),

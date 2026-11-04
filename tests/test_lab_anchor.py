@@ -14,10 +14,10 @@ from src.components.record_ingestion import Measurement
 DAY = date(2026, 1, 1)
 
 
-def measurement(analyte: str, value: float, day: date = DAY) -> Measurement:
+def measurement(biomarker: str, value: float, day: date = DAY) -> Measurement:
     return Measurement(
-        record_id=f"{analyte}-{day}",
-        analyte=analyte,
+        record_id=f"{biomarker}-{day}",
+        biomarker=biomarker,
         value=value,
         measured_at=datetime(day.year, day.month, day.day, tzinfo=UTC),
         method="blood_test_lab_report_upload",
@@ -40,10 +40,10 @@ def test_lab_band_is_centred_on_the_lab_and_widens_with_time():
 
 def test_reference_change_is_asymmetric_on_the_log_scale():
     # Arrange
-    analyte = "hdl"
+    biomarker = "hdl"
 
     # Act
-    fall, rise = reference_change(analyte)
+    fall, rise = reference_change(biomarker)
 
     # Assert
     assert fall < 0 < rise

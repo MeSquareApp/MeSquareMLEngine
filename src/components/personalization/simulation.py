@@ -39,16 +39,16 @@ SEED = 2026
 
 @dataclass(frozen=True)
 class SimulationInput:
-    """Held-out people for one analyte.
+    """Held-out people for one biomarker.
 
     Attributes:
-        analyte: Canonical analyte name.
+        biomarker: Canonical biomarker name.
         truth: Each person's measured value, used as their true level.
         population: Population (p10, p50, p90) per person, shape (rows, 3).
         weights: Survey weights.
     """
 
-    analyte: str
+    biomarker: str
     truth: FloatArray
     population: FloatArray
     weights: FloatArray
@@ -64,13 +64,13 @@ def simulate_lab_stage(data: SimulationInput) -> dict[str, float | bool]:
     """Score the lab-anchored band against the population band on simulated labs.
 
     Args:
-        data: Held-out people for one analyte.
+        data: Held-out people for one biomarker.
 
     Returns:
         Metrics, the pass/fail of goals 1, 2, 3 and 5, and "beats_population" (the
         lab stage's activation rule: lower error, narrower band, coverage in range).
     """
-    spec = BIOMARKERS[data.analyte]
+    spec = BIOMARKERS[data.biomarker]
     rng = np.random.default_rng(SEED)
     n_rows = len(data.truth)
     measurement = log_sigma(spec.measurement_cv)
@@ -101,7 +101,7 @@ def simulate_lab_stage(data: SimulationInput) -> dict[str, float | bool]:
         / np.average(pop_high - pop_low, weights=weights)
     )
     stable_repeat = data.truth * np.exp(rng.normal(0.0, measurement, n_rows))
-    fall, rise = reference_change(data.analyte)
+    fall, rise = reference_change(data.biomarker)
     change = stable_repeat / first_lab - 1.0
     false_alerts = float(np.average((change < fall) | (change > rise), weights=weights))
 

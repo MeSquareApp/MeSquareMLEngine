@@ -61,7 +61,7 @@ def daily_values(
     """
     by_day: defaultdict[date, list[float]] = defaultdict(list)
     for item in wearables:
-        if item.analyte == metric and item.day <= as_of:
+        if item.biomarker == metric and item.day <= as_of:
             by_day[item.day].append(item.value)
     return {day: float(np.mean(values)) for day, values in by_day.items()}
 

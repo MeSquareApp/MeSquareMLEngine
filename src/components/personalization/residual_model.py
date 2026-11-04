@@ -86,10 +86,10 @@ class GateResult:
 
 @dataclass
 class ResidualModel:
-    """Quantile models of the log residual for one analyte and mode.
+    """Quantile models of the log residual for one biomarker and mode.
 
     Attributes:
-        analyte: Canonical analyte name.
+        biomarker: Canonical biomarker name.
         mode: "level" or "change".
         models: Fitted LightGBM models keyed by tau.
         version: Version id reported in model_versions.
@@ -97,7 +97,7 @@ class ResidualModel:
             model's own out-of-fold predictions.
     """
 
-    analyte: str
+    biomarker: str
     mode: ResidualMode
     models: dict[float, lgb.LGBMRegressor]
     version: str
@@ -124,7 +124,7 @@ class ResidualModel:
         return np.exp(np.log(anchor)[:, None] + residuals)
 
     def save(self, root: Path) -> Path:
-        """Write the model under root/<analyte>_<mode>/.
+        """Write the model under root/<biomarker>_<mode>/.
 
         Args:
             root: Residual model directory.
@@ -132,14 +132,14 @@ class ResidualModel:
         Returns:
             The model folder.
         """
-        folder = root / f"{self.analyte}_{self.mode}"
+        folder = root / f"{self.biomarker}_{self.mode}"
         folder.mkdir(parents=True, exist_ok=True)
         joblib.dump(self, folder / MODEL_FILENAME)
         return folder
 
 
 def load_residual_models(root: Path) -> dict[tuple[str, str], ResidualModel]:
-    """Every saved residual model under root, keyed (analyte, mode).
+    """Every saved residual model under root, keyed (biomarker, mode).
 
     Args:
         root: Residual model directory. A missing directory means no models.
@@ -155,7 +155,7 @@ def load_residual_models(root: Path) -> dict[tuple[str, str], ResidualModel]:
         model = joblib.load(path)
         if not isinstance(model, ResidualModel):
             raise ResidualModelError(f"{path} does not hold a ResidualModel")
-        models[model.analyte, model.mode] = model
+        models[model.biomarker, model.mode] = model
     return models
 
 
@@ -345,7 +345,7 @@ def gate_residual_model(pairs: PairSet) -> GateResult:
 
 def train_residual_model(
     pairs: PairSet,
-    analyte: str,
+    biomarker: str,
     mode: ResidualMode,
     version: str,
 ) -> ResidualModel:
@@ -353,7 +353,7 @@ def train_residual_model(
 
     Args:
         pairs: Paired data.
-        analyte: Canonical analyte name.
+        biomarker: Canonical biomarker name.
         mode: "level" or "change".
         version: Version id.
 
@@ -363,7 +363,7 @@ def train_residual_model(
     residuals = np.log(pairs.next_lab) - np.log(pairs.anchor)
     predicted, _ = _out_of_fold_residuals(pairs)
     return ResidualModel(
-        analyte,
+        biomarker,
         mode,
         fit_quantile_residuals(pairs.features, residuals),
         version,
