@@ -27,7 +27,9 @@ def by_biomarker(state: TwinState) -> dict[str, BiomarkerPrediction]:
     return {item.biomarker: item for item in state.predictions}
 
 
-def test_stage0_population_for_every_biomarker(engine, twin_profile_codes, mock_prevent):
+def test_stage0_population_for_every_biomarker(
+    engine, twin_profile_codes, mock_prevent
+):
     # Arrange
     request = TwinRequest(profile=twin_profile_codes, as_of=START)
 

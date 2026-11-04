@@ -209,7 +209,7 @@ def mock_prevent(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def make_registry(lab: bool = True, wearable: bool = False) -> ActivationRegistry:
-    """Registry with the same decision for every biomarker (wearables never for eGFR)."""
+    """Registry with one decision for every biomarker (wearables never for eGFR)."""
     return ActivationRegistry(
         version="test-registry",
         lab={name: StageDecision(lab) for name in STUB_PRIOR},

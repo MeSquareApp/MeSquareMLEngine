@@ -87,7 +87,9 @@ def validate(registry: ActivationRegistry) -> None:
     allowed = set(WEARABLE_ACTIVATION_ORDER)
     for biomarker in registry.wearable:
         if registry.wearable_active(biomarker) and biomarker not in allowed:
-            raise ActivationError(f"{biomarker} is not in the wearable activation order")
+            raise ActivationError(
+                f"{biomarker} is not in the wearable activation order"
+            )
 
 
 def load_registry(path: Path = REGISTRY_PATH) -> ActivationRegistry:
