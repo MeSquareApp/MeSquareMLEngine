@@ -106,14 +106,16 @@ def conformal_widening(
 
 
 def widen_interval(
-    pred_matrix: FloatArray, quantiles: tuple[float, ...], widening: float
+    pred_matrix: FloatArray,
+    quantiles: tuple[float, ...],
+    widening: float | FloatArray,
 ) -> FloatArray:
     """Apply a conformal widening to the interval bounds of a prediction matrix.
 
     Args:
         pred_matrix: Predictions of shape (rows, quantiles).
         quantiles: Quantile levels matching the columns.
-        widening: Output of conformal_widening().
+        widening: One widening for every row, or one per row.
 
     Returns:
         A new matrix with widened bounds, still non-crossing.

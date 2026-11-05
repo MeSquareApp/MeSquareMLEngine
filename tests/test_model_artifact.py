@@ -13,7 +13,7 @@ from src.components.model_config import FEATURES, QUANTILES, TARGETS
 def test_save_and_load_round_trip(tiny_bundle, tmp_path):
     # Arrange
     tiny_bundle.version = "20260101T0000Z"
-    tiny_bundle.interval_widening = {"hdl": 1.5}
+    tiny_bundle.interval_widening = {"hdl": {"all": 1.5, "female:40-59": 2.0}}
 
     # Act
     tiny_bundle.save(tmp_path)
@@ -25,7 +25,7 @@ def test_save_and_load_round_trip(tiny_bundle, tmp_path):
     assert loaded.quantiles == QUANTILES
     assert loaded.feature_list == list(FEATURES)
     assert set(loaded.models["hdl"]) == set(QUANTILES)
-    assert loaded.interval_widening == {"hdl": 1.5}
+    assert loaded.interval_widening == {"hdl": {"all": 1.5, "female:40-59": 2.0}}
 
 
 def test_save_writes_readable_metadata(tiny_bundle, tmp_path):
@@ -79,3 +79,16 @@ def test_new_version_id_format():
     assert len(version) == expected_length
     assert version[8] == "T"
     assert version.endswith("Z")
+
+
+def test_load_reads_single_number_widening_from_older_bundles(tiny_bundle, tmp_path):
+    # Arrange
+    tiny_bundle.version = "20251201T0000Z"
+    tiny_bundle.interval_widening = {"hdl": 1.5}  # type: ignore[dict-item]
+    tiny_bundle.save(tmp_path)
+
+    # Act
+    loaded = QuantileModelBundle.load(tmp_path / "20251201T0000Z")
+
+    # Assert
+    assert loaded.interval_widening == {"hdl": {"all": 1.5}}

@@ -1,131 +1,61 @@
-"""Request and response bodies for POST /v1/twin/predict."""
+"""Request and response bodies for POST /v1/twin/state."""
 
 from __future__ import annotations
 
-from datetime import date
-from typing import Literal
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
+from src.schemas.outputs import (
+    LabPromptOut,
+    PredictionOut,
+    RejectedRecordOut,
+    RiskOut,
+    WindowOut,
+)
 from src.schemas.prediction import PatientFeatures
-
-LabBiomarker = Literal["non_hdl", "hdl", "total_chol", "hba1c", "egfr", "scr", "sbp"]
 
 
 class Profile(PatientFeatures):
-    """Same fields and labels as /v1/predict, plus height for BMI in PREVENT."""
+    """Prediction features plus treatment changes that reset a lab anchor."""
 
-    height_cm: float | None = Field(default=None, gt=0)
-
-
-class LabResult(BaseModel):
-    """One lab value. total_chol and scr are converted to non_hdl and eGFR."""
-
-    date: date
-    biomarker: LabBiomarker
-    value: float = Field(gt=0)
+    statin_started_at: date | None = None
+    bp_meds_started_at: date | None = None
+    pregnant: bool = False
 
 
-class WearableDay(BaseModel):
-    """End-of-day aggregates from Open Wearables. Any field may be missing.
+class RecordIn(BaseModel):
+    """One extracted lab result or wearable daily summary.
 
-    wear_hours lets the engine drop days the device was barely worn. Without it,
-    days under 1000 steps are treated as not worn.
+    Every field is optional here so that one bad record is rejected with a reason
+    in rejected_records instead of failing the whole request.
     """
 
-    date: date
-    wear_hours: float | None = Field(default=None, ge=0, le=24)
-    steps: float | None = None
-    resting_hr: float | None = None
-    hrv_rmssd: float | None = None
-    sleep_h: float | None = None
-    mvpa_min: float | None = None
-    weight_kg: float | None = None
+    id: str | None = None
+    biomarker_abbr: str | None = None
+    value: float | None = None
+    unit: str | None = None
+    measurement_method: str | None = None
+    measured_at: datetime | None = None
 
 
-class TwinRequest(BaseModel):
-    """Body of POST /v1/twin/predict: the user's full history."""
+class TwinStateRequest(BaseModel):
+    """Body of POST /v1/twin/state: the user's profile and every record."""
 
+    user_id: str | None = None
     profile: Profile
-    labs: list[LabResult] = Field(default_factory=list)
-    wearable_days: list[WearableDay] = Field(default_factory=list)
+    records: list[RecordIn] = Field(default_factory=list)
     as_of: date | None = None
-    horizon_days: int = Field(default=90, ge=0, le=365)
-    include_trajectory: bool = True
 
 
-class Interval(BaseModel):
-    """Natural-unit 10th, 50th, and 90th percentiles."""
-
-    q10: float
-    q50: float
-    q90: float
-
-
-class TrajectoryPoint(Interval):
-    """One day of a biomarker trajectory and where its estimate comes from."""
-
-    date: date
-    basis: Literal["prior", "estimated", "measured", "anchored"]
-    confidence: Literal["low", "medium", "high"]
-    forecast: bool
-
-
-class InnovationOut(BaseModel):
-    """How a lab compared with the prediction made just before it."""
-
-    date: date
-    observed: float
-    predicted: float
-    z: float
-
-
-class BiomarkerOut(BaseModel):
-    """Prior, current, and forecast view of one biomarker."""
-
-    unit: str
-    prior: Interval
-    current: TrajectoryPoint
-    forecast: TrajectoryPoint
-    change_vs_prior: float
-    wearable_effect: float
-    innovations: list[InnovationOut]
-    trajectory: list[TrajectoryPoint] | None = None
-
-
-class WearableOut(BaseModel):
-    """The user's wearable baseline and latest change against it."""
-
-    first_date: date | None
-    baseline_end: date | None
-    baseline_ready: bool
-    baseline: dict[str, float | None]
-    latest_delta: dict[str, float | None]
-    valid_days_last_30: int
-    last_valid_date: date | None
-    status: Literal["no_data", "building_baseline", "ok", "sparse", "stale"]
-
-
-class RiskOut(BaseModel):
-    """10-year risk as a fraction: median and 80% interval."""
-
-    median: float
-    q10: float
-    q90: float
-
-
-class TwinResponse(BaseModel):
-    """Twin output. prevent keys: population_prior, current, forecast.
-
-    prevent_out_of_range maps a view to the PREVENT inputs (total_chol, hdl, sbp,
-    bmi) with at least 5% of samples outside AHA's validated range, and the share
-    that was clipped into it. Views and inputs below that are absent. A flagged
-    risk is less reliable and should not be shown as a validated result.
-    """
+class TwinStateResponse(BaseModel):
+    """Personalized bands, risk, and traceability for one user."""
 
     as_of: date
-    biomarkers: dict[str, BiomarkerOut]
-    wearable: WearableOut
-    prevent: dict[str, dict[str, RiskOut]]
-    prevent_note: str | None = None
-    prevent_out_of_range: dict[str, dict[str, float]] = Field(default_factory=dict)
+    predictions: list[PredictionOut]
+    risk: RiskOut
+    rejected_records: list[RejectedRecordOut]
+    wearable_windows: dict[str, WindowOut]
+    lab_prompt: LabPromptOut
+    model_versions: dict[str, str]
+    input_hash: str

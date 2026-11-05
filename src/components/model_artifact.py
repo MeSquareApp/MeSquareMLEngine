@@ -15,6 +15,8 @@ from src.components.model_config import FEATURES, QUANTILES, TARGETS, CategoryLe
 from src.utils.exception import MeSquareError
 
 MODEL_FILENAME = "model.joblib"
+# Older bundles stored one widening per target; it becomes the pooled group value.
+POOLED_WIDENING = "all"
 METADATA_FILENAME = "metadata.json"
 GIT_TIMEOUT_SECONDS = 5
 
@@ -39,7 +41,8 @@ class QuantileModelBundle:
         quantiles: Quantile levels of every target.
         targets: Biomarkers with models.
         training_row_counts: Labeled rows per target.
-        interval_widening: Conformal widening of the p10-p90 interval per target.
+        interval_widening: Conformal widening of the p10-p90 interval per target,
+            then per calibration group (sex x age band) with a pooled "all".
         git_sha: Commit the models were trained from, if known.
         trained_at: ISO timestamp of training.
     """
@@ -52,7 +55,7 @@ class QuantileModelBundle:
     quantiles: tuple[float, ...] = QUANTILES
     targets: tuple[str, ...] = TARGETS
     training_row_counts: dict[str, int] = field(default_factory=dict)
-    interval_widening: dict[str, float] = field(default_factory=dict)
+    interval_widening: dict[str, dict[str, float]] = field(default_factory=dict)
     git_sha: str | None = None
     trained_at: str | None = None
 
@@ -121,7 +124,10 @@ class QuantileModelBundle:
             quantiles=tuple(float(tau) for tau in payload["quantiles"]),
             targets=tuple(payload.get("targets") or TARGETS),
             training_row_counts=dict(payload.get("training_row_counts") or {}),
-            interval_widening=dict(payload.get("interval_widening") or {}),
+            interval_widening={
+                target: table if isinstance(table, dict) else {POOLED_WIDENING: table}
+                for target, table in (payload.get("interval_widening") or {}).items()
+            },
             git_sha=payload.get("git_sha"),
             trained_at=payload.get("trained_at"),
         )
