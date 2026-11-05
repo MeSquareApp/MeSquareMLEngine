@@ -116,7 +116,8 @@ def _rpy2() -> ModuleType:
     """
     try:
         import rpy2.robjects as robjects
-    except (ImportError, OSError, RuntimeError) as error:
+    except Exception as error:
+        # cffi raises ffi.error when libR is too old for this rpy2 build.
         raise PreventUnavailableError(f"rpy2/R is not available: {error}") from error
     # rpy2 ships no type information, so mypy sees the module as Any.
     return cast(ModuleType, robjects)

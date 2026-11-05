@@ -22,7 +22,7 @@ For documentation, go to http://localhost:8000/docs
 
 ### Run with Docker
 
-The image installs R, `rpy2`, and `AHAprevent` from `PREVENT/AHAprevent_1.1.0.tar.gz`, then serves the API. Mount trained model artifacts from the host; set `DATABASE_URL` in `.env` only if you need shadow prediction writes.
+The image installs R 4.6+ from CRAN (`bookworm-cran46`), `rpy2`, and `AHAprevent` from `PREVENT/AHAprevent_1.1.0.tar.gz`, then serves the API. Mount trained model artifacts from the host; set `DATABASE_URL` in `.env` only if you need shadow prediction writes.
 
 ```bash
 docker build -t mesquare-mlengine .

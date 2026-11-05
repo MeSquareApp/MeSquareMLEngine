@@ -1,4 +1,5 @@
 # MeSquareMLEngine API with embedded R and AHAprevent for PREVENT risk scores.
+# rpy2>=3.6 needs R>=4.5 (R_getVar). Bookworm's apt R is older, so use CRAN.
 FROM python:3.14-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -8,13 +9,24 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+        curl \
+        ca-certificates \
+        gnupg \
+        dirmngr \
+    && gpg --batch --keyserver keyserver.ubuntu.com \
+        --recv-key 95C0FAF38DB3CCAD0C080A7BDC78B2DDEABC47B7 \
+    && gpg --batch --armor --export 95C0FAF38DB3CCAD0C080A7BDC78B2DDEABC47B7 \
+        > /etc/apt/trusted.gpg.d/cran_debian_key.asc \
+    && echo "deb http://cloud.r-project.org/bin/linux/debian bookworm-cran46/" \
+        > /etc/apt/sources.list.d/cran-r.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
         r-base \
         r-base-dev \
         libgomp1 \
-        curl \
-        ca-certificates \
         build-essential \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && R --version | head -1
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
