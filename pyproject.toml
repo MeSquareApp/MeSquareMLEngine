@@ -29,6 +29,7 @@ dev = [
     "ruff>=0.17.3",
 ]
 ml = [
+    "ipykernel>=7.4.0",
     "matplotlib>=3.11.2",
     "pyarrow>=26.0.1",
     "statsmodels>=0.15.0",
