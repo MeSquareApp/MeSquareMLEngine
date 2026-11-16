@@ -1,0 +1,61 @@
+{
+  "user_id": "demo-labs",
+  "profile": {
+    "sex": "Male",
+    "age": 52,
+    "race_eth": "Non-Hispanic White",
+    "height_cm": 178,
+    "weight_kg": 92,
+    "smoking": "former",
+    "told_high_bp": 1,
+    "bp_meds": 1,
+    "told_high_chol": 1,
+    "chol_meds": 0,
+    "diabetes_dx": "no",
+    "bp_meds_started_at": "2026-01-15",
+    "pregnant": false
+  },
+  "records": [
+    {
+      "id": "lab-tc",
+      "biomarker_abbr": "TC",
+      "value": 230,
+      "unit": "mg/dL",
+      "measurement_method": "blood_test_lab_report_upload",
+      "measured_at": "2026-05-04T08:15:00.000Z"
+    },
+    {
+      "id": "lab-hdl",
+      "biomarker_abbr": "HDL",
+      "value": 38,
+      "unit": "mg/dL",
+      "measurement_method": "blood_test_lab_report_upload",
+      "measured_at": "2026-05-04T08:15:00.000Z"
+    },
+    {
+      "id": "lab-hba1c",
+      "biomarker_abbr": "HBA1C",
+      "value": 5.9,
+      "unit": "%",
+      "measurement_method": "blood_test_lab_report_upload",
+      "measured_at": "2026-05-04T08:15:00.000Z"
+    },
+    {
+      "id": "lab-creat",
+      "biomarker_abbr": "CREAT",
+      "value": 1.0,
+      "unit": "mg/dL",
+      "measurement_method": "blood_test_lab_report_upload",
+      "measured_at": "2026-05-04T08:15:00.000Z"
+    },
+    {
+      "id": "lab-sbp",
+      "biomarker_abbr": "SBP",
+      "value": 136,
+      "unit": "mmHg",
+      "measurement_method": "home_bp_protocol",
+      "measured_at": "2026-05-04T08:15:00.000Z"
+    }
+  ],
+  "as_of": "2026-11-05"
+}

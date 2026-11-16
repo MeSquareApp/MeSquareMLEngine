@@ -1,0 +1,74 @@
+{
+  "user_id": "demo-wearables",
+  "profile": {
+    "sex": "Female",
+    "age": 48,
+    "race_eth": "Non-Hispanic White",
+    "height_cm": 165,
+    "weight_kg": 78,
+    "smoking": "never",
+    "bp_meds": 0,
+    "chol_meds": 0,
+    "diabetes_dx": "no",
+    "pregnant": false
+  },
+  "records": [
+    {
+      "id": "lab-hba1c-2",
+      "biomarker_abbr": "HBA1C",
+      "value": 6.0,
+      "unit": "%",
+      "measurement_method": "blood_test_lab_report_upload",
+      "measured_at": "2026-08-01T08:00:00.000Z"
+    },
+    {
+      "id": "lab-hdl-2",
+      "biomarker_abbr": "HDL",
+      "value": 52,
+      "unit": "mg/dL",
+      "measurement_method": "blood_test_lab_report_upload",
+      "measured_at": "2026-08-01T08:00:00.000Z"
+    },
+    {
+      "id": "lab-tc-2",
+      "biomarker_abbr": "TC",
+      "value": 210,
+      "unit": "mg/dL",
+      "measurement_method": "blood_test_lab_report_upload",
+      "measured_at": "2026-08-01T08:00:00.000Z"
+    },
+    {
+      "id": "w-rhr-1",
+      "biomarker_abbr": "resting_heart_rate",
+      "value": 62,
+      "unit": "bpm",
+      "measurement_method": "wearable_apple_health",
+      "measured_at": "2026-10-01T07:00:00.000Z"
+    },
+    {
+      "id": "w-rhr-2",
+      "biomarker_abbr": "resting_heart_rate",
+      "value": 61,
+      "unit": "bpm",
+      "measurement_method": "wearable_apple_health",
+      "measured_at": "2026-10-02T07:00:00.000Z"
+    },
+    {
+      "id": "w-weight-1",
+      "biomarker_abbr": "weight",
+      "value": 78.2,
+      "unit": "kg",
+      "measurement_method": "smart_scale",
+      "measured_at": "2026-10-01T07:00:00.000Z"
+    },
+    {
+      "id": "w-weight-2",
+      "biomarker_abbr": "weight",
+      "value": 78.0,
+      "unit": "kg",
+      "measurement_method": "smart_scale",
+      "measured_at": "2026-10-02T07:00:00.000Z"
+    }
+  ],
+  "as_of": "2026-11-05"
+}

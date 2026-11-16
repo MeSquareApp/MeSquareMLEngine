@@ -1,0 +1,17 @@
+{
+  "user_id": "demo-prior",
+  "profile": {
+    "sex": "Male",
+    "age": 52,
+    "race_eth": "Non-Hispanic White",
+    "height_cm": 178,
+    "weight_kg": 92,
+    "smoking": "never",
+    "bp_meds": 0,
+    "chol_meds": 0,
+    "diabetes_dx": "no",
+    "pregnant": false
+  },
+  "records": [],
+  "as_of": "2026-11-05"
+}
